@@ -9,6 +9,17 @@ speaker with a camera) whether the person, or the group, it is talking to is sti
 explainable pipeline (face and body detection, tracking, an engagement score, a probabilistic presence model and
 a five-state machine) plus a web demo that shows every step live.
 
+## Watch the concept film
+
+[![Animated preview: people approach and leave a voice-agent kiosk, with near/far audio signals](docs/img/presence-demo-intro.gif)](docs/media/presence-demo-intro-en.mp4)
+
+[Watch the full film with sound — 49 seconds](docs/media/presence-demo-intro-en.mp4) · [English subtitles](docs/media/presence-demo-intro-en.srt)
+
+An animated introduction to quiet presence, group continuity, and how distance informs audio decisions.
+The waveforms illustrate the intended behavior; they are not recorded benchmark results.
+
+### Live web demo
+
 ![The web demo](docs/img/screenshot.png)
 
 ## Why

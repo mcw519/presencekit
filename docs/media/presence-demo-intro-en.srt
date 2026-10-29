@@ -1,0 +1,47 @@
+1
+00:00:00,000 --> 00:00:02,279
+A shared microphone hears everyone in the room.
+
+2
+00:00:02,279 --> 00:00:05,825
+But a voice agent should only listen to the people talking to it.
+
+3
+00:00:06,667 --> 00:00:09,608
+The camera tracks each person and estimates their distance.
+
+4
+00:00:09,608 --> 00:00:13,726
+Step into the interaction region, and your voice goes through to the agent.
+
+5
+00:00:14,583 --> 00:00:17,728
+A participant can stop speaking and still be present.
+
+6
+00:00:17,728 --> 00:00:20,873
+The agent should wait, rather than end the conversation.
+
+7
+00:00:21,750 --> 00:00:24,283
+Now one person steps out of the region.
+
+8
+00:00:24,283 --> 00:00:28,223
+The microphone still hears them, but their voice no longer reaches the agent.
+
+9
+00:00:29,083 --> 00:00:32,648
+Compare the microphone input with the audio passed to the agent.
+
+10
+00:00:32,648 --> 00:00:37,698
+Voice isolation keeps the near voice, and the camera turns down speech from outside the region.
+
+11
+00:00:38,500 --> 00:00:41,767
+When everyone leaves the region, the conversation can end.
+
+12
+00:00:41,767 --> 00:00:48,301
+Presence demo uses the camera and voice isolation, so your voice agent hears only the people inside the region.

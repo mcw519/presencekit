@@ -8,6 +8,17 @@ presence-demo 結合鏡頭和麥克風，讓對話裝置（機器人、服務機
 它是一條小而可解釋的管線（人臉與身體偵測、追蹤、互動意圖分數、機率式在場模型、五個狀態的狀態機），
 加上一個即時顯示每一步的網頁 demo。
 
+## 專案介紹影片
+
+[![動畫預覽：人物走近與離開語音機台，搭配近／遠音軌示意](docs/img/presence-demo-intro.gif)](docs/media/presence-demo-intro-en.mp4)
+
+[觀看有聲完整版 — 49 秒](docs/media/presence-demo-intro-en.mp4) · [英文字幕](docs/media/presence-demo-intro-en.srt)
+
+透過動畫說明安靜但仍在場、多人對話的延續，以及距離如何參與收音判斷。影片為英文旁白與英文字幕；
+波形呈現預期行為，並非實際錄製的效能測試結果。
+
+### 即時網頁 demo
+
 ![網頁 demo](docs/img/screenshot.zh-TW.png)
 
 ## 為什麼
