@@ -81,3 +81,8 @@ def test_core_types_round_trip_the_legacy_dicts():
     assert Observation().kind == "tick" and Observation(speaking=True).kind == "speech"
     assert Observation(detections=[]).kind == "frame"
     assert Step(events=(), snapshot={}).events == ()
+
+
+def test_detectors_never_import_the_web_framework_or_upper_layers():
+    prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server", "presence_demo.identity")
+    assert not _violations("detectors", WEB_FRAMEWORK, prefixes)

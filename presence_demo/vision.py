@@ -8,13 +8,16 @@ import os
 import time
 import urllib.request
 from pathlib import Path
-from typing import Protocol
 
 import cv2
 import numpy as np
 
+from .core.tracks import Detection
+from .detectors.base import Embedder, FaceDetector, PoseDetector  # noqa: F401  (re-exported)
+from .detectors.embed import HistEmbedder, SFaceEmbedder
+from .detectors.face import HaarDetector, YuNetDetector
+from .detectors.pose import COCO_KP, COCO_KP_IDX, MoveNetMultiPoseDetector  # noqa: F401  (re-exported)
 from .intent import frontal_from_landmarks
-from .tracker import Detection
 
 log = logging.getLogger(__name__)
 MODEL_DIR = Path(os.environ.get("PRESENCE_MODEL_DIR", Path(__file__).resolve().parent.parent / "models"))
@@ -44,59 +47,9 @@ MOVENET = (
     "movenet_multipose_lightning_fp16.tflite",
     "https://www.kaggle.com/api/v1/models/google/movenet/tfLite/multipose-lightning-tflite-float16/1/download",
 )
-COCO_KP = ["nose", "l_eye", "r_eye", "l_ear", "r_ear", "l_shoulder", "r_shoulder"]
-COCO_KP_IDX = {**{n: i for i, n in enumerate(COCO_KP)}, "l_hip": 11, "r_hip": 12}
 
-
-class PoseDetector(Protocol):
-    """Returns bodies in pixel coordinates of the given image: (bbox_xyxy, conf, {name: (x, y, c)})."""
-
-    name: str
-
-    def detect(self, img: np.ndarray) -> list[tuple[tuple, float, dict]]: ...
-
-
-class MoveNetMultiPoseDetector:
-    """MoveNet.MultiPose Lightning (up to 6 people, COCO-17 keypoints) on CPU via LiteRT.
-
-    Input: RGB uint8, letterboxed so the long side is `size` (multiple of 32). Output [1, 6, 56]:
-    17 x (y, x, score) normalized to the padded input, then (ymin, xmin, ymax, xmax, score)."""
-
-    name = "MoveNet MultiPose Lightning"
-
-    def __init__(self, path, conf: float = 0.3, size: int = 256, threads: int = 4):
-        from ai_edge_litert.interpreter import Interpreter
-
-        self.it = Interpreter(str(path), num_threads=threads)
-        self.inp = self.it.get_input_details()[0]["index"]
-        self.out = self.it.get_output_details()[0]["index"]
-        self.conf, self.size, self._shape = conf, size, None
-
-    def detect(self, img):
-        h, w = img.shape[:2]
-        s = self.size / max(h, w)
-        nw, nh = max(1, int(round(w * s))), max(1, int(round(h * s)))
-        pw, ph = -(-nw // 32) * 32, -(-nh // 32) * 32
-        if self._shape != (ph, pw):
-            self.it.resize_tensor_input(self.inp, [1, ph, pw, 3])
-            self.it.allocate_tensors()
-            self._shape = (ph, pw)
-        canvas = np.zeros((ph, pw, 3), np.uint8)
-        canvas[:nh, :nw] = cv2.cvtColor(cv2.resize(img, (nw, nh)), cv2.COLOR_BGR2RGB)
-        self.it.set_tensor(self.inp, canvas[None])
-        self.it.invoke()
-        out = self.it.get_tensor(self.out)[0]
-        fx, fy = pw / s, ph / s  # normalized padded coords -> original pixels
-        res = []
-        for r in out:
-            if r[55] < self.conf:
-                continue
-            ymin, xmin, ymax, xmax = r[51:55]
-            bbox = (float(xmin * fx), float(ymin * fy), float(min(xmax * fx, w)), float(min(ymax * fy, h)))
-            kps = r[:51].reshape(17, 3)
-            kp = {n: (float(kps[j, 1] * fx), float(kps[j, 0] * fy), float(kps[j, 2])) for n, j in COCO_KP_IDX.items()}
-            res.append((bbox, float(r[55]), kp))
-        return res
+# v0.12 name of the face detector protocol
+Detector = FaceDetector
 
 
 def ensure_movenet() -> Path | None:
@@ -132,18 +85,6 @@ def load_pose_detector(allow_download: bool = True) -> PoseDetector | None:
     except Exception as e:  # noqa: BLE001
         log.warning("pose model failed to load: %s", e)
         return None
-
-
-class Detector(Protocol):
-    name: str
-
-    def detect(self, img: np.ndarray) -> list[tuple[np.ndarray, float]]: ...  # (raw row, conf)
-
-
-class Embedder(Protocol):
-    name: str
-
-    def embed(self, img: np.ndarray, raw: np.ndarray) -> np.ndarray: ...
 
 
 def _sha256(p: Path) -> str:
@@ -192,65 +133,6 @@ def ensure_model(fname, url, sha256: str | None = None) -> Path | None:
         if p.exists():
             p.unlink()
         return None
-
-
-class YuNetDetector:
-    name = "YuNet"
-
-    def __init__(self, path, score=0.5):
-        self.det = cv2.FaceDetectorYN.create(str(path), "", (320, 320), score, 0.3, 50)
-
-    def detect(self, img):
-        h, w = img.shape[:2]
-        self.det.setInputSize((w, h))
-        _, faces = self.det.detect(img)
-        return [] if faces is None else [(f, float(f[14])) for f in faces]
-
-
-class HaarDetector:
-    name = "Haar(fallback)"
-
-    def __init__(self):
-        self.det = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-
-    def detect(self, img):
-        g = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        rects, _, weights = self.det.detectMultiScale3(g, 1.1, 5, minSize=(40, 40), outputRejectLevels=True)
-        out = []
-        for (x, y, w, h), wt in zip(rects, np.ravel(weights) if len(rects) else [], strict=False):
-            row = np.zeros(15, np.float32)
-            row[:4] = (x, y, w, h)
-            out.append((row, float(min(1.0, max(0.0, wt / 5.0)))))  # rough confidence
-        return out
-
-
-class SFaceEmbedder:
-    name = "SFace"
-
-    def __init__(self, path):
-        self.rec = cv2.FaceRecognizerSF.create(str(path), "")
-
-    def embed(self, img, raw):
-        return self.rec.feature(self.rec.alignCrop(img, raw)).ravel()
-
-    def feature_aligned(self, crop):
-        return self.rec.feature(crop).ravel()
-
-
-class HistEmbedder:
-    """Weak fallback: HSV histogram of face + upper body region. Tune cos thresholds higher."""
-
-    name = "HSV-hist(fallback)"
-
-    def embed(self, img, raw):
-        x, y, w, h = [int(v) for v in raw[:4]]
-        H, W = img.shape[:2]
-        crop = img[max(0, y) : min(H, y + int(h * 2.2)), max(0, x - w // 4) : min(W, x + w + w // 4)]
-        if crop.size == 0:
-            return np.zeros(96, np.float32)
-        hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-        hist = cv2.calcHist([hsv], [0, 1], None, [16, 6], [0, 180, 0, 256]).ravel()
-        return hist - hist.mean()
 
 
 def decode_jpeg(data: bytes) -> tuple[np.ndarray | None, float]:
