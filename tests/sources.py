@@ -16,6 +16,6 @@ def ui_source() -> str:
 
 
 def server_source() -> str:
-    """server.py plus the web package (session, runtime, outbox)."""
-    files = [PKG / "server.py", *sorted((PKG / "web").glob("*.py"))]
+    """server.py plus the web transport package and the runtime package it drives (v0.13 layering)."""
+    files = [PKG / "server.py", *sorted((PKG / "web").glob("*.py")), *sorted((PKG / "runtime").glob("*.py"))]
     return "\n".join(p.read_text(encoding="utf-8") for p in files)

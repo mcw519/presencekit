@@ -3,7 +3,7 @@
 core      -> numpy + pure-python helpers only (no OpenCV, no web framework, no runtime/web modules)
 detectors -> may use OpenCV, never the web framework
 identity  -> never the web framework, never the web/runtime layers
-runtime   -> never the web framework (FastAPI/Starlette/uvicorn)
+runtime   -> never the web framework (FastAPI/Starlette/uvicorn), never presence_demo.web / server
 """
 
 from __future__ import annotations
@@ -91,3 +91,22 @@ def test_detectors_never_import_the_web_framework_or_upper_layers():
 def test_identity_never_imports_the_web_framework_or_the_web_runtime_layers():
     prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server")
     assert not _violations("identity", WEB_FRAMEWORK, prefixes)
+
+
+def test_runtime_never_imports_the_web_framework_or_the_web_layer():
+    prefixes = ("presence_demo.web", "presence_demo.server")
+    assert not _violations("runtime", WEB_FRAMEWORK, prefixes)
+
+
+def test_lower_layers_load_without_the_web_framework():
+    import subprocess
+    import sys
+
+    code = (
+        "import sys; import presence_demo.core, presence_demo.detectors, presence_demo.identity, "
+        "presence_demo.runtime; bad = sorted(m for m in sys.modules if m.split('.')[0] in "
+        "('fastapi', 'starlette', 'uvicorn') or m.startswith(('presence_demo.web', 'presence_demo.server'))); "
+        "print(','.join(bad))"
+    )
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()
+    assert out == ""
