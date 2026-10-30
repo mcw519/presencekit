@@ -12,19 +12,33 @@ does all the analysis in memory.
 
 ```
 presence_demo/
-  config.py          Config dataclass, RANGES (validation), State enum
-  tracker.py         PresenceTracker: tracking, intent, presence, state machine (pure logic)
+  core/              pure logic (numpy only, no I/O): the presence engine
+    types.py         typed values: Observation, VideoFrame, PresenceEvent, Step
+    tracks.py        Detection, Track · geometry.py boxes/IoU · tracking.py association, Kalman, appearance
+    state_machine.py presence/intent scoring and the session state machine
+    tracker.py       PresenceTracker (v0.12 API) · engine.py PresenceCore (typed facade: Observation -> Step)
+  detectors/         face detector / embedder / pose protocols, built-ins (YuNet, Haar, SFace, hist, MoveNet), registry
+  identity/          cross-session re-ID: in-memory crops and store, matcher protocol + Jev client,
+                     call guard (caps, breaker), decision, ContinuationDriver
+  runtime/           framework-free per-connection runtime
+    session.py       PresenceRuntime: tracker, vision/audio workers, ASR gate, watchdog, control messages
+    context.py       AppContext: the process-wide dependencies passed to a runtime
+    protocol.py      wire protocol (binary tags, video framing, CLIENT_MESSAGE_TYPES)
+    resources.py     process-wide models, locks, worker pools · continuity.py page lease, observation clock
+    alignment.py     audio/vision timing provenance
+  config.py          Config dataclass (flat keys + grouped view), RANGES (validation), State enum
+  tracker.py         v0.12 import path for core.tracker (re-exports)
   kalman.py          constant-velocity Kalman filter, Hungarian algorithm
   presence_model.py  HMM log-odds helpers (Layer 2)
   intent.py          intent cues and smoothing (Layer 3)
   appearance.py      torso HSV histogram, Bhattacharyya similarity
   body.py            pose orientation, face↔body association, distance and calibration
-  vision.py          YuNet / SFace / Haar fallback, MoveNet pose, in-memory decode
+  vision.py          VisionPipeline (detect + embed), in-memory decode; re-exports the detectors
   embed_backends.py  SFace fp32 / int8 / TFLite (+ delegate) backends
   optimizer.py       motion gate, embedding throttle, ROI crop, adaptive fps
   audio.py           PureSound streaming glue, clean VAD, vision cross-check
   asr.py             AssemblyAI streaming client (optional)
-  reid.py            cross-session re-ID manager and cloud backend (optional)
+  reid.py            v0.12 import path for identity (re-exports; CrossSessionReid = ContinuationDriver)
   acceptance.py      unified offline PoC acceptance runner and report schema
   acceptance_cases.py synthetic state-machine and mock re-ID scenarios
   acceptance_pipeline.py isolated local-model WebSocket replay and soak measurement
@@ -33,11 +47,10 @@ presence_demo/
   diag.py            structured logging, redaction, event ring buffer, watchdog helpers
   stats.py           resource and latency statistics
   server.py          FastAPI app: routes, token middleware, static files, entry point
-  web/
-    runtime.py       process-wide models, locks, worker pools
+  web/               FastAPI transport only
+    session.py       WebSocket handshake, receive loop and close; drives a runtime.PresenceRuntime
     outbox.py        per-connection send queue with back-pressure
-    session.py       the per-connection WebSocket loop
-    continuity.py    page-scoped reconnect lease and observation clock
+    runtime.py, continuity.py, protocol.py, alignment.py   v0.12 import paths (re-exports from runtime/)
   static/
     index.html       markup only (text via data-i18n attributes)
     app.css          presence-specific layout on top of the vendored PureSound CSS
@@ -51,9 +64,45 @@ scripts/             benchmark, evaluation, model export / fetch, figures, confi
 tests/               unit, scenario, WebSocket, privacy, UI and i18n tests
 ```
 
+## Layers (v0.13)
+
+v0.13 separates the code into layers with a one-way dependency direction. Behaviour, wire protocol, settings and
+defaults are unchanged; the old import paths keep working as re-exports.
+
+```
+web (FastAPI transport)  ->  runtime  ->  identity  ->  core
+                                      ->  detectors ->  core
+```
+
+| Layer | Contains | May not import |
+|---|---|---|
+| `core` | tracking, presence/intent scoring, state machine, typed values, `PresenceCore` | anything but numpy and pure helpers (no OpenCV, no web, runtime, detectors, identity) |
+| `detectors` | `FaceDetector`, `Embedder`, `PoseDetector` protocols, built-ins, `registry` | web framework, `web`, `runtime`, `identity`, `server` |
+| `identity` | re-ID crops/store (memory only), `IdentityMatcher`, `CallGuard`, `decide`, `ContinuationDriver` | web framework, `web`, `runtime`, `server` |
+| `runtime` | `PresenceRuntime`, `AppContext`, protocol, page continuity, process resources | `fastapi`, `starlette`, `uvicorn`, `web`, `server` |
+| `web` + `server.py` | HTTP routes, token middleware, WebSocket handshake, outbox | — |
+
+`tests/test_layering.py` enforces the table statically (AST imports) and checks that importing `core`,
+`detectors`, `identity` and `runtime` never loads the web framework.
+
+- **`PresenceCore`** (`core.engine`) is a typed facade over `PresenceTracker`: `update(Observation) -> Step`
+  (events + the same snapshot dict). It produces exactly the tracker's steps (`tests/test_core.py`).
+- **`PresenceRuntime`** owns everything one connection does. It talks to an *outbox* object
+  (`post`, `run`, `backlog`, counters) and receives decoded packets through `on_bytes` / `on_text`, so it can be
+  driven without FastAPI (`tests/test_runtime.py`).
+- **`AppContext`** lists the process-wide dependencies a runtime receives (page registry, vision lock, audio pool,
+  pipeline and pose loaders, vision job, calibration, audio stream factory). In v0.13 it only *references* the
+  existing module singletons; ownership did not move. `web.session` builds it from its own module globals at
+  connect time.
+- **Settings.** `Config` keeps its flat keys (the only form on the wire and in presets). `Config.group(name)` and
+  `Config.as_groups()` give a grouped read view (see [Configuration](configuration.md)). Flat keys stay fully
+  supported in v0.13; a deprecation of flat keys in Python code is planned for the next version, with no warnings
+  yet.
+
 ## One connection
 
-Each browser tab opens one WebSocket (`/ws`). `web/session.py` runs for that connection:
+Each browser tab opens one WebSocket (`/ws`). `web/session.py` does the handshake and hands every packet to a
+`runtime.PresenceRuntime` for that connection:
 
 ```mermaid
 flowchart LR
@@ -69,7 +118,7 @@ flowchart LR
 
 - **Only the newest frame is processed.** If a frame arrives while the previous one is still running, the older
   waiting frame is dropped (and counted). The browser therefore never builds up lag.
-- Detectors are shared by all connections behind a lock (`runtime.py`); each connection has its own tracker,
+- Detectors are shared by all connections behind a lock (`runtime/resources.py`); each connection has its own tracker,
   audio state and re-ID store.
 - A watchdog restarts a worker that makes no progress for 5 s while input keeps arriving, and logs a stack dump.
 - Processing never waits for the network: the outbox is bounded, and when the browser or network is slow it drops new audio and superseded state messages instead of blocking the workers.
@@ -126,7 +175,12 @@ tables are public (they contain no data).
 
 ## Extending
 
-- **Another detector or embedder**: implement `vision.Detector` / `vision.Embedder` and pass them to
-  `VisionPipeline(detector=…, embedder=…)`.
-- **Another re-ID provider**: implement `CloudReid.compare`.
+- **Another detector or embedder**: implement `detectors.FaceDetector` / `detectors.Embedder` (v0.12 names
+  `vision.Detector` / `vision.Embedder` still work) and pass them to `VisionPipeline(detector=…, embedder=…)`.
+  `detectors.registry.register(kind, name, factory)` names a factory; v0.13 does not yet select detectors by name
+  from settings.
+- **Another re-ID provider**: implement the `identity.IdentityMatcher` protocol
+  (`async compare(ref, query, *, model, timeout) -> (score, meta)`), e.g. by subclassing `CloudReid`.
+- **Another transport**: build a `runtime.PresenceRuntime` with an `AppContext` and an outbox object, then feed it
+  `on_bytes` / `on_text` and call `close`.
 - **A new parameter**: see [CONTRIBUTING](../CONTRIBUTING.md#adding-a-parameter).

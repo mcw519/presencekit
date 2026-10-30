@@ -1,6 +1,6 @@
 [project]
 name = "presence-demo"
-version = "0.12.0"
+version = "0.13.0"
 description = "Detect when conversing users leave: audio VAD + face tracking fusion, with a live web demo"
 readme = "README.md"
 requires-python = ">=3.10"

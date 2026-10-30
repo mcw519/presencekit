@@ -3,6 +3,34 @@
 > From 0.12.0 on, entries are written in English. Older entries are kept as written (Traditional Chinese) and may
 > mention the previous upper-case doc names (e.g. `docs/REID.md` is now `docs/reid.md`).
 
+## 0.13.0 — 2026-10-30
+
+Architecture release: the code is split into layers with a one-way dependency direction. No change in tracking,
+presence, audio, re-ID behaviour, wire protocol, settings or defaults; no new features or models. See
+[docs/architecture.md](docs/architecture.md#layers-v013).
+
+- **`presence_demo.core`** (numpy only): typed values (`Observation`, `VideoFrame`, `PresenceEvent`, `Step`), the
+  tracker split into `tracks` / `geometry` / `tracking` / `state_machine` / `tracker`, and `PresenceCore`, a typed
+  facade (`update(Observation) -> Step`) that yields exactly the tracker's steps.
+- **`presence_demo.detectors`**: `FaceDetector`, `Embedder`, `PoseDetector` protocols, the built-ins (YuNet, Haar,
+  SFace, histogram, MoveNet) and a small name registry (`detectors.registry`). Settings do not select detectors by
+  name yet.
+- **`presence_demo.identity`**: re-ID split into crops, in-memory reference store, key handling, `IdentityMatcher`
+  protocol + Jev client, call guard (caps, breaker), decision and `ContinuationDriver`. Crops are still kept in
+  memory only.
+- **`presence_demo.runtime`** (no FastAPI/Starlette/uvicorn): `PresenceRuntime` holds all per-connection logic that
+  was inside the `/ws` handler; `AppContext` lists the process-wide dependencies it receives (references only;
+  ownership unchanged); protocol (now with named binary tags and `CLIENT_MESSAGE_TYPES`), alignment, page continuity
+  and process resources moved here. `web/session.py` is now the transport only.
+- **Grouped settings view**: `Config.group(name)` / `Config.as_groups()`. Flat keys remain the wire and preset format
+  and are fully supported; a deprecation of flat keys in Python code is planned for the next version (no warnings
+  in 0.13).
+- **Compatibility**: the 0.12 import paths (`presence_demo.tracker`, `vision`, `reid`, `web.runtime`,
+  `web.protocol`, `web.alignment`, `web.continuity`) re-export the moved objects. The pipeline singleton now lives
+  in `runtime.resources`; assign `runtime.resources._pipeline` instead of `web.runtime._pipeline` (internal).
+- **Tests**: `tests/test_layering.py` enforces the import rules (static, plus a subprocess check that the lower
+  layers never load the web framework); new `test_core.py`, `test_runtime.py` and detector/identity tests.
+
 ## 0.12.0 — 2026-10-16
 
 Clean-up release: no change in tracking, presence or audio behaviour.
