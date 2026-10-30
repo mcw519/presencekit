@@ -6,7 +6,7 @@ presence-demo is a Python package with a pure-logic core (no I/O, unit-testable 
 FastAPI + WebSocket web demo around it. The browser captures camera and microphone and draws the UI; the server
 does all the analysis in memory.
 
-![Architecture](img/architecture.png)
+![Architecture: browser, web transport, runtime, and the identity, detectors and core layers](img/architecture.png)
 
 ## Code layout
 
@@ -106,14 +106,18 @@ Each browser tab opens one WebSocket (`/ws`). `web/session.py` does the handshak
 
 ```mermaid
 flowchart LR
-  WS[WebSocket receive] -->|binary 0x04 video / legacy frame JSON| SLOT[latest-frame slot]
-  WS -->|binary 0x01 audio| AQ[audio queue ≤ 1 s]
-  WS -->|config, vad, start, stop…| CTRL[control]
-  SLOT --> VW[vision worker<br/>thread pool] --> TR[PresenceTracker]
-  AQ --> AW[audio worker] --> TR
-  TICK[ticker 0.5 s] --> TR
-  TR --> OB[outbox] --> OUT[WebSocket send]
-  TR --> RE[re-ID task] --> OB
+  WS[web/session.py<br/>WebSocket receive] -->|binary 0x04 video / legacy frame JSON| SLOT
+  WS -->|binary 0x01 audio| AQ
+  WS -->|config, vad, start, stop…| CTRL
+  subgraph RT["runtime.PresenceRuntime"]
+    SLOT[latest-frame slot] --> VW[vision worker<br/>thread pool] --> TR[PresenceTracker]
+    AQ[audio queue ≤ 1 s] --> AW[audio worker] --> TR
+    CTRL[control]
+    TICK[ticker 0.5 s] --> TR
+    TR --> RE[re-ID task]
+  end
+  TR --> OB[web/outbox.py] --> OUT[WebSocket send]
+  RE --> OB
 ```
 
 - **Only the newest frame is processed.** If a frame arrives while the previous one is still running, the older

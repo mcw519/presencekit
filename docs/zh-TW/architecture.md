@@ -5,7 +5,7 @@
 presence-demo 是一個 Python 套件：核心是純邏輯（沒有 I/O，可以注入時鐘做單元測試），外面包一層 FastAPI + WebSocket 網頁 demo。
 瀏覽器負責擷取鏡頭和麥克風、繪製介面；所有分析都在伺服器記憶體中完成。
 
-![架構](../img/architecture.zh-TW.png)
+![架構：瀏覽器、web 傳輸、runtime，以及 identity、detectors、core 三層](../img/architecture.zh-TW.png)
 
 ## 程式結構
 
@@ -93,14 +93,18 @@ web（FastAPI 傳輸）  ->  runtime  ->  identity  ->  core
 
 ```mermaid
 flowchart LR
-  WS[WebSocket 接收] -->|binary 0x04 影像 / 舊 frame JSON| SLOT[最新畫面槽]
-  WS -->|binary 0x01 音訊| AQ[音訊佇列 ≤ 1 s]
-  WS -->|config、vad、start、stop…| CTRL[控制]
-  SLOT --> VW[影像 worker<br/>執行緒池] --> TR[PresenceTracker]
-  AQ --> AW[音訊 worker] --> TR
-  TICK[ticker 0.5 s] --> TR
-  TR --> OB[outbox] --> OUT[WebSocket 傳送]
-  TR --> RE[re-ID 工作] --> OB
+  WS[web/session.py<br/>WebSocket 接收] -->|binary 0x04 影像 / 舊 frame JSON| SLOT
+  WS -->|binary 0x01 音訊| AQ
+  WS -->|config、vad、start、stop…| CTRL
+  subgraph RT["runtime.PresenceRuntime"]
+    SLOT[最新畫面槽] --> VW[影像 worker<br/>執行緒池] --> TR[PresenceTracker]
+    AQ[音訊佇列 ≤ 1 s] --> AW[音訊 worker] --> TR
+    CTRL[控制]
+    TICK[ticker 0.5 s] --> TR
+    TR --> RE[re-ID 工作]
+  end
+  TR --> OB[web/outbox.py] --> OUT[WebSocket 傳送]
+  RE --> OB
 ```
 
 - **只處理最新的畫面。** 前一張還在處理時又來了新畫面，較舊的等待畫面會被丟掉（並計數），所以瀏覽器端不會累積延遲。
