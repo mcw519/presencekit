@@ -18,6 +18,17 @@
 設定存在瀏覽器（`localStorage["presence-cfg-v1"]`），每次連線都會重送；也可以匯出、匯入 JSON。存過的設定會蓋過新版的
 預設值，升級後如果想用新的預設值，請按「**預設**」。
 
+## 分組檢視（v0.13）
+
+`Config` 仍保留扁平鍵：它們依然是儲存方式、傳輸格式（`/api/config`、WebSocket `config` 訊息、預設組合、匯出的
+JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵都恰好屬於 `presence_demo.config.GROUPS` 中的一個分組
+（`core`、`tracker`、`presence`、`intent`、`vision`、`pose`、`perf`、`audio`、`asr`、`reid`）。
+`cfg.group("reid").reid_threshold` 與 `cfg.reid_threshold` 是同一個值；`cfg.group(name).update({...})` 只對該分組
+套用相同的驗證規則；`cfg.as_groups()` 回傳巢狀複本。伺服器程序層級的設定仍然使用環境變數。
+
+> **預計棄用：** 在 Python 程式碼中直接以扁平鍵存取，預計於**下一個**版本標示為棄用，改用分組檢視。v0.13 不會發出
+> 任何警告，扁平的傳輸格式也不受影響。
+
 ## 模組之間的相依
 
 | 模組 | 開關／模式 | 說明 |

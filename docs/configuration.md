@@ -21,6 +21,18 @@ Settings are saved in the browser (`localStorage["presence-cfg-v1"]`) and re-sen
 exported and imported as JSON. Saved settings override newer defaults, so press **Defaults** after upgrading if
 you want the new ones.
 
+## Grouped view (v0.13)
+
+`Config` keeps its flat keys: they remain the storage, the wire format (`/api/config`, WebSocket `config`
+messages, presets, exported JSON) and the reference below, and they work unchanged in v0.13. In addition every
+key belongs to exactly one group in `presence_demo.config.GROUPS` (`core`, `tracker`, `presence`, `intent`,
+`vision`, `pose`, `perf`, `audio`, `asr`, `reid`). `cfg.group("reid").reid_threshold` is the same value as
+`cfg.reid_threshold`; `cfg.group(name).update({...})` applies the normal validation to that group only, and
+`cfg.as_groups()` returns a nested copy. Server-process settings stay environment variables.
+
+> **Deprecation planned:** direct flat-key access from Python code is planned to be deprecated in the **next**
+> version in favor of the grouped view. v0.13 emits no warnings, and the flat wire format is not affected.
+
 ## Dependencies between modules
 
 | Module | Switch / mode | Notes |
