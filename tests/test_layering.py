@@ -86,3 +86,8 @@ def test_core_types_round_trip_the_legacy_dicts():
 def test_detectors_never_import_the_web_framework_or_upper_layers():
     prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server", "presence_demo.identity")
     assert not _violations("detectors", WEB_FRAMEWORK, prefixes)
+
+
+def test_identity_never_imports_the_web_framework_or_the_web_runtime_layers():
+    prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server")
+    assert not _violations("identity", WEB_FRAMEWORK, prefixes)
