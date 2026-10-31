@@ -54,8 +54,8 @@ actually there and engaged**, uses audio only where it helps, and writes down th
 Requires [uv](https://docs.astral.sh/uv/) and Python ≥ 3.10.
 
 ```bash
-git clone https://github.com/mcw519/presence-demo.git
-cd presence-demo
+git clone https://github.com/mcw519/presencekit.git
+cd presencekit
 uv sync
 uv run presencekit            # open http://127.0.0.1:8000 and press Start
 ```

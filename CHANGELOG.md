@@ -8,7 +8,7 @@
 Renamed the project, distribution, Python package and CLI to **PresenceKit** (`presencekit`). Update imports
 from `presence_demo` to `presencekit` and launch the web demo with `uv run presencekit`. The `PRESENCE_*`
 environment variables and browser settings are unchanged. Existing per-user `presence-demo/models` caches
-are reused when the new `presencekit/models` cache does not exist. The GitHub repository URL remains unchanged.
+are reused when the new `presencekit/models` cache does not exist. The GitHub repository is now `https://github.com/mcw519/presencekit`.
 
 SDK release: every neural model runs on ONNX Runtime, and the detection logic can be embedded without the web
 demo. Tracking, presence and state-machine behaviour, wire protocol and settings are unchanged (exceptions under

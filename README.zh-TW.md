@@ -48,8 +48,8 @@ PresenceKit 看的是**誰真的在、誰真的在互動**，只在有幫助時�
 需要 [uv](https://docs.astral.sh/uv/) 和 Python ≥ 3.10。
 
 ```bash
-git clone https://github.com/mcw519/presence-demo.git
-cd presence-demo
+git clone https://github.com/mcw519/presencekit.git
+cd presencekit
 uv sync
 uv run presencekit            # 開啟 http://127.0.0.1:8000，按「開始」
 ```
