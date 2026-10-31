@@ -96,6 +96,8 @@ class PresenceRuntime:
             "frame_rx_t": 0.0,  # last frame received (monotonic)
             "frame_done_t": time.monotonic(),
             "frames_done": 0,
+            "frame_bad_t": 0.0,  # last frame that failed to decode (monotonic)
+            "frames_bad": 0,
             "audio_rx_t": 0.0,
             "audio_done_t": time.monotonic(),
             "loop_lag_ms": 0.0,
@@ -328,7 +330,10 @@ class PresenceRuntime:
                 return result
 
             r = await asyncio.to_thread(vision_job)
-            if r is None:
+            if r is None:  # undecodable JPEG: handled (not a stall for the watchdog), but nothing was observed
+                mon["frame_bad_t"] = time.monotonic()
+                mon["frames_bad"] += 1
+                self.warn("bad_frame", 30, frames_bad=mon["frames_bad"])
                 del data
                 continue
             dets, tm = r
@@ -511,7 +516,9 @@ class PresenceRuntime:
                     out.post(bytes((AUDIO_OUT_TAG,)) + struct.pack("<d", t_client) + o, audio=True)
                 if o and tracks is not None:  # 0x03: t, n, out, vi, raw (same n samples each, aligned)
                     vi, rw = tracks
-                    out.post(bytes((RECORDING_TAG,)) + struct.pack("<dI", t_client, len(o) // 2) + o + vi + rw)
+                    # audio back-pressure applies: a slow client gets gaps in its recording, not unbounded memory
+                    rec_msg = bytes((RECORDING_TAG,)) + struct.pack("<dI", t_client, len(o) // 2) + o + vi + rw
+                    out.post(rec_msg, audio=True)
                 await self.asr_step(tr, pcm, o, speech, now)
             async with self.lock:
                 tr = st["tr"]
@@ -563,8 +570,8 @@ class PresenceRuntime:
             now = time.monotonic()
             run = st["running"]
             ps = aud["stream"] is not None and st["tr"].cfg.audio_pipeline == "puresound"
-            # vision: frames arrive but none finished for STALL_S
-            if run and mon["frame_rx_t"] > mon["frame_done_t"] + STALL_S:
+            # vision: frames arrive but none finished (processed or rejected as undecodable) for STALL_S
+            if run and mon["frame_rx_t"] > max(mon["frame_done_t"], mon["frame_bad_t"]) + STALL_S:
                 self.warn(
                     "vision_stalled",
                     30,
@@ -785,8 +792,7 @@ class PresenceRuntime:
                 diag.event("start", conn=cid)
                 self.send(tr.snapshot(), droppable=False)
             elif kind in ("stop", "reset"):
-                self.proc.reset()
-                stats.counts = self.proc.counts
+                self.proc.reset()  # deferred if the vision thread is mid-frame; counts are zeroed in place
                 st["running"] = kind == "reset" and st["running"]
                 if kind == "stop":
                     aud["rec"] = False

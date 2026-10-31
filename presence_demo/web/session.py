@@ -43,7 +43,8 @@ def app_context() -> AppContext:
 
 
 async def ws(sock: WebSocket):
-    if TOKEN and not secrets.compare_digest(sock.query_params.get("token", ""), TOKEN):
+    # bytes: compare_digest raises TypeError on non-ASCII str (would be a 500 instead of a refusal)
+    if TOKEN and not secrets.compare_digest(sock.query_params.get("token", "").encode(), TOKEN.encode()):
         await sock.close(code=1008)
         return
     protocols = [p.strip() for p in sock.headers.get("sec-websocket-protocol", "").split(",")]

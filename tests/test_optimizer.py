@@ -496,3 +496,29 @@ def test_strong_motion_new_body_only_is_detected_immediately():
     assert tm["diff"] >= cfg.motion_threshold and not tm["skipped"]
     assert not tm["pose_reused"] and fake.calls == 2
     assert len(dets) == 2 and sum(d.face_bbox is None for d in dets) == 1
+
+
+def test_reset_during_process_is_deferred_and_never_blocks(setup):
+    import threading
+
+    proc, pipe, clk = setup
+    counts = proc.counts
+    proc.process(frame(), Config(motion_gate=False))
+    inside, release = threading.Event(), threading.Event()
+    detect = pipe.detector.detect
+
+    def slow_detect(img):
+        inside.set()
+        release.wait(5)
+        return detect(img)
+
+    pipe.detector.detect = slow_detect
+    th = threading.Thread(target=proc.process, args=(frame(), Config(motion_gate=False)))
+    th.start()
+    assert inside.wait(5)
+    proc.reset()  # from another thread (the event loop) while the worker is mid-frame: must not wait for it
+    release.set()
+    th.join(5)
+    # the in-flight frame did not refill the caches after the reset, and stats still see the same counts dict
+    assert proc.last_faces == [] and proc.cache == [] and proc.last_thumb is None
+    assert proc.counts is counts and proc.counts["frames"] == 0

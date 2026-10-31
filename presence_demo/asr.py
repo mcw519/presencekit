@@ -113,7 +113,11 @@ class AssemblyAIStream:
 
     async def close(self) -> None:
         self._closing = True
-        await self._q.put(None)
+        # never await the queue: once _run has given up (no key, retries exhausted) nobody drains it, and a full
+        # queue would hang the audio worker and the connection close
+        if self._q.full():
+            self._q.get_nowait()
+        self._q.put_nowait(None)
         if self._task:
             with contextlib.suppress(asyncio.TimeoutError, asyncio.CancelledError):
                 await asyncio.wait_for(self._task, 3.0)

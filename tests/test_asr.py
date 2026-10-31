@@ -121,6 +121,19 @@ def test_unreachable_server_reports_error_without_key(caplog):
     assert KEY not in caplog.text and KEY not in json.dumps(events)
 
 
+def test_close_after_giving_up_with_full_queue_does_not_hang():
+    async def main():
+        s = asr.AssemblyAIStream(Config(), lambda ev: None, url="ws://127.0.0.1:9/v3/ws", max_retries=0)
+        s.start()
+        await asyncio.wait_for(s._task, 5.0)  # _run gave up: nobody drains the queue any more
+        for _ in range(100):  # the audio worker keeps feeding until the session gate closes the stream
+            s.feed(bytes(3200))
+        assert s._q.full()
+        await asyncio.wait_for(s.close(), 1.0)  # used to block forever on the full queue
+
+    asyncio.run(main())
+
+
 @pytest.mark.skipif(not os.environ.get("ASSEMBLYAI_API_KEY"), reason="no ASSEMBLYAI_API_KEY (live test)")
 def test_live_connects():
     asr.set_key(os.environ["ASSEMBLYAI_API_KEY"])
