@@ -224,7 +224,7 @@ class TrackingMixin:
             cues = {
                 "facing": im.facing_cue(t.has_face, t.frontal, pose),
                 "distance": im.distance_cue(t.distance, c.zone_max, c.leave_distance) if c.distance_enabled else None,
-                "dwell": min(1.0, (now - (t.in_roi_since or now)) / im.DWELL_FULL),
+                "dwell": min(1.0, (now - (now if t.in_roi_since is None else t.in_roi_since)) / im.DWELL_FULL),
                 "approach": im.approach_cue(t.size_rate),
                 "still": im.still_cue(t.vx),
                 "center": im.center_cue(cx, (t.bbox[1] + t.bbox[3]) / 2, roi_c),
@@ -246,7 +246,7 @@ class TrackingMixin:
             if t.intent is None:
                 t.intent = raw
             else:
-                t.intent = im.smooth(t.intent, raw, now - (t.intent_t or now), c.intent_tau)
+                t.intent = im.smooth(t.intent, raw, now - (now if t.intent_t is None else t.intent_t), c.intent_tau)
             t.intent_t = now
         for t in self.tracks.values():
             if t.intent is None:

@@ -70,8 +70,9 @@ class PresenceTracker(TrackingMixin, PresenceStateMachineMixin):
             self._last_starter_t = now
 
         score = self.cfg.intent_model == "score"
-        if self.state == State.ENDED and self._restart_needs_fresh and not starters:
-            self._restart_absent_seen = True  # ROI seen without anyone confident: a later arrival is new
+        if self.state == State.ENDED and self._restart_needs_fresh and (not starters or self.speaking):
+            # ROI seen without anyone confident (a later arrival is new), or speech (the person engages again)
+            self._restart_absent_seen = True
         vision_start_ok = (not self._restart_needs_fresh or self._restart_absent_seen) and not self._entry_only()
         if self.state == State.ENDED and (
             (starters and not score and vision_start_ok)

@@ -232,7 +232,7 @@ class Config:
                     new = typ(round(min(hi, max(lo, raw))) if typ is int else min(hi, max(lo, raw)))
                     if new != (typ(raw) if typ is float else round(raw)):
                         warnings.append(f"{k} clamped to {new}")
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 warnings.append(f"invalid value for {k}")
                 continue
             setattr(self, k, new)

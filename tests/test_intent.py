@@ -72,6 +72,7 @@ def test_frontal_from_landmarks():
     assert im.frontal_from_landmarks(frontal) == pytest.approx(1.0)
     assert im.frontal_from_landmarks(profile) == 0.0
     assert im.frontal_from_landmarks([1, 2, 3]) is None
+    assert im.frontal_from_landmarks([0.0] * 15) is None  # Haar fallback rows carry no landmarks
 
 
 def test_cues():
@@ -165,6 +166,19 @@ def test_new_group_requires_intent():
     feed(tr, clk, 4, [person(1, 0.5)])
     feed(tr, clk, 12, [person(2, 0.62)])
     assert any(e["event"] == "NEW_GROUP" for e in tr.log)
+
+
+def test_pending_new_group_timer_does_not_block_joins_after_end():
+    # audio priority: the old participant left; a newcomer qualified for NEW_GROUP just before the AWAY timeout
+    # ended the session. The pending timer used to survive ENDED and block every later join (no session ever again).
+    tr, clk = mk(priority_mode="audio", presence_model="hmm")
+    feed(tr, clk, 4, [person(1, 0.5)], speaking=True)
+    feed(tr, clk, 6, [], speaking=False)
+    feed(tr, clk, 4, [person(2, 0.62)], speaking=False)
+    assert tr.state == State.ENDED and not any(e["event"] == "NEW_GROUP" for e in tr.log)
+    feed(tr, clk, 3, [], speaking=False)  # the newcomer leaves the ROI ...
+    s = feed(tr, clk, 3, [person(3, 0.5)], speaking=False)  # ... and an engaged person steps up
+    assert s["state"] == "ACTIVE" and s["tracks"][0]["participant"]
 
 
 def test_intent_weighted_presence():

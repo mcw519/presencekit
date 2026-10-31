@@ -41,9 +41,11 @@ class PresenceStateMachineMixin:
         self.p_tracks: float | None = None
         self.timeout = self.cfg.base_timeout
         self.session = getattr(self, "session", 0) + (0 if initial else 1)
-        # AWAY bookkeeping (balanced/audio): a return needs *new* evidence, not continued presence
+        # AWAY bookkeeping (balanced/audio, and vision after present_max_silence): a return needs *new* evidence,
+        # not continued presence
         self._away_ids: set[int] = set()
         self._away_absent_seen = False
+        self._away_capped = False  # AWAY entered through present_max_silence with people in view
         if initial:
             # after an away-timeout ENDED (balanced/audio), continued presence must not restart a session
             self._restart_needs_fresh = False
@@ -55,23 +57,26 @@ class PresenceStateMachineMixin:
         self.log.append(e)
         self.log = self.log[-200:]
 
-    def _set_state(self, now, new, reason):
+    def _set_state(self, now, new, reason, capped: bool = False):
         if new == State.AWAY and self.state != State.AWAY:
             self._away_ids = {t.id for t in self.tracks.values() if t.visible}
             self._away_absent_seen = not self.present
+            self._away_capped = capped
         if new != self.state:
             self._event(now, "transition", reason, frm=self.state.value, to=new.value)
             self.state = new
             self.state_since = now
 
     def _end(self, now, reason, away_timeout: bool = False):
-        # balanced/audio: a session that timed out while people may still be in view must not restart from
-        # that same continued presence; a restart then needs speech or a vision re-entry (seen absent first)
-        self._restart_needs_fresh = away_timeout and self.cfg.priority_mode != "vision"
+        # balanced/audio (and vision after present_max_silence): a session that timed out while people may still
+        # be in view must not restart from that same continued presence; a restart then needs speech or a vision
+        # re-entry (seen absent first)
+        self._restart_needs_fresh = away_timeout and (self.cfg.priority_mode != "vision" or self._away_capped)
         self._restart_absent_seen = not self.present
         self._set_state(now, State.ENDED, reason)
         self.tracks.clear()  # drop embeddings
         self.present, self.empty = False, True
+        self._newgroup_since = None  # _check_new_group does not run in ENDED: a pending timer would block joins
 
     def _start(self, now, reason):
         self._restart_needs_fresh = False
@@ -107,6 +112,22 @@ class PresenceStateMachineMixin:
             self._event(now, "turned_away", "participants turned away and moving away")
         elif not cue:
             self._away_cue_since = None
+
+    def _away_newcomer(self) -> bool:
+        """A near, detected person in view who was not visible when AWAY began."""
+        return any(
+            t.visible and t.visible_kind == "detected" and not t.far and t.id not in self._away_ids
+            for t in self.tracks.values()
+        )
+
+    def _capped_return(self) -> tuple[bool, str]:
+        """AWAY through present_max_silence: the same silent person still in view is no return (it would flip
+        AWAY <-> ACTIVE on every evaluation and never end). Speech, a re-entry or a new person in view is."""
+        speech = self.speaking or self.last_speech > self.state_since
+        newcomer = self._away_newcomer()
+        if speech:
+            return True, "speech with people present"
+        return self._away_absent_seen or newcomer, "user returned" if self._away_absent_seen else "new person in view"
 
     def _old_group_missing(self):
         if self.cfg.presence_model == "hmm":
@@ -262,14 +283,19 @@ class PresenceStateMachineMixin:
         # vision: only the cameras can bring the conversation back (audio never does)
         p_ret = p_tr if c.priority_mode == "vision" else pg
         if self.state == State.AWAY:
-            if p_ret >= c.p_active:
-                self._set_state(now, State.ACTIVE, "user returned (P=%.2f)" % p_ret)
+            if not self.present:
+                self._away_absent_seen = True
+            fresh, why = self._capped_return() if self._away_capped else (True, "user returned")
+            if p_ret >= c.p_active and fresh:
+                if self._away_capped:
+                    self.last_speech = now  # fresh engagement: restart the silence clock (it reached the cap)
+                self._set_state(now, State.ACTIVE, "%s (P=%.2f)" % (why, p_ret))
             elif now - self.state_since >= c.end_after_away:
                 self._end(now, f"away for {c.end_after_away:.0f}s", away_timeout=True)
             return
         capped = c.priority_mode == "vision" and c.present_max_silence > 0 and silence >= c.present_max_silence
         if capped:
-            self._set_state(now, State.AWAY, "silence %.0fs reached present_max_silence" % silence)
+            self._set_state(now, State.AWAY, "silence %.0fs reached present_max_silence" % silence, capped=True)
         elif self._below_away_since is not None and now - self._below_away_since >= c.away_hold_seconds:
             self._set_state(now, State.AWAY, "P=%.2f < %.2f for %.1fs" % (pg, c.p_away, now - self._below_away_since))
         elif pg < c.p_maybe or (self.state == State.MAYBE_AWAY and pg < c.p_active):
@@ -316,18 +342,18 @@ class PresenceStateMachineMixin:
         self.elapsed = elapsed
         # vision mode: only a confident person brings the conversation back (speech alone never does)
         if self.state == State.AWAY:
-            if mode == "vision":
+            if not self.present:
+                self._away_absent_seen = True
+            if mode == "vision" and self._away_capped:
+                returned, why_ret = self._capped_return()
+                returned = returned and self.present
+            elif mode == "vision":
                 returned, why_ret = self.present, "user returned"
             else:
                 # balanced/audio: only NEW evidence brings the conversation back. Speech now (AWAY is only
                 # entered after silence, so this is a speech onset), or a vision re-entry: present again after
                 # the ROI was seen without anyone, or a person who was not visible when AWAY began.
-                if not self.present:
-                    self._away_absent_seen = True
-                newcomer = any(
-                    t.visible and t.visible_kind == "detected" and not t.far and t.id not in self._away_ids
-                    for t in self.tracks.values()
-                )
+                newcomer = self._away_newcomer()
                 returned = (self.speaking and self._onset_ok(now)) or (
                     self.present and (self._away_absent_seen or newcomer)
                 )
@@ -339,7 +365,7 @@ class PresenceStateMachineMixin:
                     else "user returned"
                 )
             if returned:
-                if mode != "vision":
+                if mode != "vision" or self._away_capped:
                     # the return is fresh engagement: restart the silence clock, otherwise the same silence
                     # would send the session straight back to AWAY on the next evaluation
                     self.last_speech = now
@@ -353,7 +379,7 @@ class PresenceStateMachineMixin:
             and now - self._away_cue_since >= c.turned_away_seconds
         )
         if self.timeout > 0 and elapsed >= self.timeout:
-            self._set_state(now, State.AWAY, why % elapsed)
+            self._set_state(now, State.AWAY, why % elapsed, capped=mode == "vision" and self.present)
         elif early:
             self._set_state(now, State.MAYBE_AWAY, "turned away + moving away %.1fs" % (now - self._away_cue_since))
         elif (
