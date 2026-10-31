@@ -35,7 +35,10 @@ flowchart LR
 讓上層改用聲音判斷。
 
 特徵點也可以算出 0–1 的**正面分數**：看鼻子離雙眼中點多遠（相對於眼距）。鼻子在正中間 → 1（看著鏡頭）；
-偏移達眼距的一半以上 → 0（明顯側臉）。
+偏移達眼距的一半以上 → 0（明顯側臉）。沒有特徵點時（Haar 備援）分數視為未知，意圖改用中性的預設值。
+
+三個模型（YuNet、SFace、MoveNet）都跑在 ONNX Runtime 上；執行提供者和模型檔見 [SDK 與 ONNX Runtime](sdk.md)。
+OpenCV DNN、LiteRT 和 Haar cascade 保留作為備援。
 
 ## 3. 誰是誰：SFace embedding
 

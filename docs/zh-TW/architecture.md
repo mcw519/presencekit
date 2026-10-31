@@ -16,7 +16,10 @@ presence_demo/
     tracks.py        Detection、Track · geometry.py 框與 IoU · tracking.py 配對、Kalman、外觀
     state_machine.py 在場／意圖分數與 session 狀態機
     tracker.py       PresenceTracker（v0.12 API）· engine.py PresenceCore（型別化介面：Observation -> Step）
-  detectors/         臉部偵測器／embedder／姿勢的 protocol、內建實作（YuNet、Haar、SFace、hist、MoveNet）、registry
+  inference/         ONNX Runtime 推論層（只用 numpy + onnxruntime）：OrtOptions（提供者、執行緒、圖最佳化）、
+                     共用 session、記憶體內圖整理、模型目錄 + ModelStore
+  detectors/         臉部偵測器／embedder／姿勢的 protocol、內建實作（YuNet、SFace、MoveNet 跑在 ONNX Runtime；
+                     OpenCV DNN／LiteRT／Haar／hist 備援）、registry
   identity/          跨 session re-ID：記憶體內裁切與參考臉 store、matcher protocol + Jev 用戶端、
                      呼叫保護（上限、熔斷）、判斷、ContinuationDriver
   runtime/           不依賴網頁框架的每連線執行層
@@ -25,6 +28,7 @@ presence_demo/
     protocol.py      傳輸協定（binary tag、影像封包、CLIENT_MESSAGE_TYPES）
     resources.py     程序共用的模型、鎖、執行緒池 · continuity.py 頁面租約、觀察時鐘
     alignment.py     音訊／影像時間來源
+  sdk.py             PresenceEngine：可嵌入的介面（畫面／音訊進、Step 出），不用網頁框架、不開執行緒
   config.py          Config 資料類別（扁平 key + 分組檢視）、RANGES（驗證範圍）、State 列舉
   tracker.py         core.tracker 的 v0.12 匯入路徑（re-export）
   kalman.py          等速 Kalman 濾波、匈牙利演算法
@@ -32,8 +36,8 @@ presence_demo/
   intent.py          意圖線索與平滑（Layer 3）
   appearance.py      軀幹 HSV 直方圖、Bhattacharyya 相似度
   body.py            姿勢朝向、臉與身體配對、距離與校正
-  vision.py          VisionPipeline（偵測 + embedding）、記憶體內解碼；re-export detectors
-  embed_backends.py  SFace fp32 / int8 / TFLite（+ delegate）後端
+  vision.py          VisionPipeline（偵測 + embedding，預設 ORT，附備援）、姿勢載入、記憶體內解碼
+  embed_backends.py  SFace 後端：ONNX Runtime fp32 / int8、OpenCV DNN、TFLite（+ delegate）
   optimizer.py       移動閘門、embedding 節流、ROI 裁切、自適應 fps
   audio.py           PureSound 串流銜接、乾淨 VAD、影像交叉確認
   asr.py             AssemblyAI 串流用戶端（選用）
@@ -56,31 +60,43 @@ presence_demo/
     js/              i18n · core · settings · app · audio · panels · main（一般 script，載入順序有意義）
     i18n/            en.js、zh-TW.js 字串表
     vendor/puresound PureSound 設計系統（未修改）
-scripts/             基準測試、評估、模型匯出／下載、圖片、設定文件
+scripts/             基準測試、評估、模型匯出（export_movenet_onnx.py、export_sface_tflite.py）／下載、
+                     圖片、設定文件
   run_acceptance.py  統一驗收 runner CLI
   acceptance_browser_fixture.js 共用的合成媒體與 app 流程瀏覽器 fixture
   acceptance_browser_reid_fixture.js 隔離 browser 驗收的 re-ID 控制項
 tests/               單元、情境、WebSocket、隱私、介面和 i18n 測試
 ```
 
-## 分層（v0.13）
+## 分層（v0.13、v0.14）
 
-v0.13 把程式分成單向相依的幾層。行為、傳輸協定、設定與預設值都沒變；舊的匯入路徑透過 re-export 繼續可用。
+v0.13 把程式分成單向相依的幾層；v0.14 在最底層加上 `inference`，最上層加上 `sdk` 介面。傳輸協定與設定都沒變；舊的匯入
+路徑透過 re-export 繼續可用。
 
 ```
 web（FastAPI 傳輸）  ->  runtime  ->  identity  ->  core
                                   ->  detectors ->  core
+sdk（可嵌入介面）    ------------->  detectors ->  inference（ONNX Runtime）
 ```
 
 | 層 | 內容 | 不可匯入 |
 |---|---|---|
-| `core` | 追蹤、在場／意圖分數、狀態機、型別化資料、`PresenceCore` | numpy 與純 Python 工具以外的東西（不含 OpenCV、web、runtime、detectors、identity） |
+| `core` | 追蹤、在場／意圖分數、狀態機、型別化資料、`PresenceCore` | numpy 與純 Python 工具以外的東西（不含 OpenCV、onnxruntime、web、runtime、detectors、identity、inference） |
+| `inference` | `OrtOptions`、`load_model`／`OrtModel`（共用 session）、提供者、圖整理、`CATALOG`／`ModelStore` | numpy、onnxruntime 與標準函式庫以外的東西 |
 | `detectors` | `FaceDetector`、`Embedder`、`PoseDetector` protocol、內建實作、`registry` | 網頁框架、`web`、`runtime`、`identity`、`server` |
 | `identity` | re-ID 裁切與 store（只在記憶體）、`IdentityMatcher`、`CallGuard`、`decide`、`ContinuationDriver` | 網頁框架、`web`、`runtime`、`server` |
 | `runtime` | `PresenceRuntime`、`AppContext`、協定、頁面延續、程序共用資源 | `fastapi`、`starlette`、`uvicorn`、`web`、`server` |
-| `web` + `server.py` | HTTP 路由、權杖中介層、WebSocket handshake、outbox | — |
+| `sdk` | `PresenceEngine`（一組串流的影像 + core + 選用 PureSound 音訊） | 網頁框架、`web`、`runtime`、`server`、`stats` |
+| `web` + `server.py` | HTTP 路由、權杖中介層、WebSocket handshake、outbox（需要 `web` extra） | — |
 
-`tests/test_layering.py` 以 AST 靜態檢查上表，並確認匯入 `core`、`detectors`、`identity`、`runtime` 時不會載入網頁框架。
+`tests/test_layering.py` 以 AST 靜態檢查上表，並確認匯入 `core`、`inference`、`detectors`、`identity`、`sdk`、`runtime`
+時不會載入網頁框架。
+
+- **`inference`** 讓所有神經網路模型（YuNet、SFace、MoveNet、PureSound）都跑在 ONNX Runtime 上：一份 `OrtOptions`
+  （執行提供者、執行緒、圖最佳化；`PRESENCE_ORT_*`）、每個模型在程序中只有一個 session、一份用 sha256 驗證下載的模型
+  目錄。見 [SDK 與 ONNX Runtime](sdk.md)。
+- **`PresenceEngine`**（`sdk`）是可嵌入的入口：畫面、主程式的 VAD 或 PCM 音訊進，`Step` 出。它和網頁 runtime 使用同樣的
+  `FrameProcessor` 與 `PresenceCore`，但沒有 asyncio、執行緒或傳輸層。
 
 - **`PresenceCore`**（`core.engine`）是 `PresenceTracker` 的型別化介面：`update(Observation) -> Step`（事件 + 同樣的 snapshot dict），產生的步驟和 tracker 完全相同（`tests/test_core.py`）。
 - **`PresenceRuntime`** 負責一個連線的所有工作。它透過 *outbox* 物件（`post`、`run`、`backlog`、計數）送出資料，用 `on_bytes`／`on_text` 接收已解開的封包，所以不需要 FastAPI 也能驅動（`tests/test_runtime.py`）。
@@ -108,7 +124,8 @@ flowchart LR
 ```
 
 - **只處理最新的畫面。** 前一張還在處理時又來了新畫面，較舊的等待畫面會被丟掉（並計數），所以瀏覽器端不會累積延遲。
-- 偵測器由所有連線共用，用鎖保護（`runtime/resources.py`）；每個連線有自己的追蹤器、音訊狀態和 re-ID 參考臉。
+- 偵測器由所有連線共用，用鎖保護（`runtime/resources.py`）；每個連線有自己的追蹤器、音訊狀態和 re-ID 參考臉。模型載入
+  與第一次使用時的下載（姿勢、int8 SFace）在取得鎖之前完成，下載再慢也不會卡住其他連線。
 - 輸入持續進來但 worker 5 秒沒有進展時，watchdog 會重啟它並記錄 stack dump。
 - 處理從不等待網路：outbox 有上限，瀏覽器或網路慢時，會丟掉新的音訊和會被取代的狀態訊息，而不是卡住 worker。
 - 同一載入頁面會用隨機 page capability 重新取得記憶體中的參考臉。每條傳輸租約都有 generation；已被取代的連線無法更新目前頁面狀態。傳輸中斷會暫停在場觀察時鐘並標示感測中斷，不會假造正常的 `ENDED`。時鐘停在最後完成畫面後 3 秒，因此主機睡眠後 ticker 延遲醒來也不會把睡眠時間算成缺席。
@@ -163,7 +180,8 @@ WebSocket handshake 會提供 `presence-v1` 和頁面專屬的 `page-<32 個小�
 
 ## 擴充
 
-- **換偵測器或 embedder**：實作 `detectors.FaceDetector` / `detectors.Embedder`（v0.12 名稱 `vision.Detector` / `vision.Embedder` 仍可用），傳給 `VisionPipeline(detector=…, embedder=…)`。`detectors.registry.register(kind, name, factory)` 可替 factory 命名；v0.13 還不會依設定用名稱選擇偵測器。
+- **換偵測器或 embedder**：實作 `detectors.FaceDetector` / `detectors.Embedder`（v0.12 名稱 `vision.Detector` / `vision.Embedder` 仍可用），傳給 `VisionPipeline(detector=…, embedder=…)`。ONNX 模型請用 `inference.load_model(path, options)` 載入，才能共用提供者設定與 session 快取。`detectors.registry.register(kind, name, factory)` 可替 factory 命名；設定還不會用名稱選擇偵測器。
+- **其他應用程式**：使用 `sdk.PresenceEngine`（見 [SDK 與 ONNX Runtime](sdk.md)）。
 - **換 re-ID 服務**：實作 `identity.IdentityMatcher` protocol（`async compare(ref, query, *, model, timeout) -> (score, meta)`），例如繼承 `CloudReid`。
 - **換傳輸方式**：用 `AppContext` 和 outbox 物件建立 `runtime.PresenceRuntime`，再呼叫 `on_bytes`／`on_text`，最後 `close`。
 - **新增參數**：見 [CONTRIBUTING](../../CONTRIBUTING.md#adding-a-parameter)。

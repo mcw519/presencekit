@@ -67,7 +67,9 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | 變數 | 意思 |
 |---|---|
 | `PRESENCE_TOKEN` | 設定後，頁面、API、WebSocket 都需要 `?token=` |
-| `PRESENCE_MODEL_DIR` | 模型存放位置（預設 `./models`） |
+| `PRESENCE_MODEL_DIR` | 模型存放位置（預設：原始碼目錄下的 `models/`，否則 `~/.cache/presence-demo/models`） |
+| `PRESENCE_ORT_PROVIDERS` | ONNX Runtime 執行提供者，例如 `coreml,cpu` 或 `auto`（預設 `cpu`）；見 [SDK 與 ONNX Runtime](sdk.md) |
+| `PRESENCE_ORT_THREADS`、`PRESENCE_ORT_GRAPH_OPT` | 每個模型的執行緒數（0 = 由 ORT 決定）與圖最佳化等級（`disable`/`basic`/`extended`/`all`） |
 | `PRESENCE_FACE_EMBEDDER=hist` | 不載入 SFace，改用 HSV 直方圖備援 |
 | `PRESENCE_NPU_DELEGATE` | `embed_backend = npu` 的外部 TFLite delegate 函式庫（只能在伺服器端設定） |
 | `ASSEMBLYAI_API_KEY` | 選用語音辨識的 key |

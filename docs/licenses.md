@@ -15,11 +15,11 @@ weights and third-party packages are **not** covered by that license; their term
 
 | Component | License | Source | Commercial? | Notes / risks |
 |---|---|---|---|---|
-| **YuNet** face detector (`face_detection_yunet_2023mar.onnx`) | MIT (opencv_zoo); training code BSD-3-Clause | [opencv_zoo](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet) · [libfacedetection.train](https://github.com/ShiqiYu/libfacedetection.train) | ⚠️ mostly | Trained on WIDER FACE, whose terms are not stated in opencv_zoo. Whether weights trained on a research dataset may be used commercially is legally unsettled. Lower risk than SFace. |
+| **YuNet** face detector (`yunet_s_dynamic.onnx` for ONNX Runtime; `face_detection_yunet_2023mar.onnx` for the OpenCV DNN fallback; same weights) | BSD-3-Clause (libfacedetection.train, `yunet_s_dynamic.onnx`); MIT (opencv_zoo) | [opencv_zoo](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet) · [libfacedetection.train](https://github.com/ShiqiYu/libfacedetection.train) | ⚠️ mostly | Trained on WIDER FACE, whose terms are not stated in opencv_zoo. Whether weights trained on a research dataset may be used commercially is legally unsettled. Lower risk than SFace. |
 | **SFace** face embedding (`face_recognition_sface_2021dec.onnx`) | Apache-2.0 (opencv_zoo directory license) | [opencv_zoo](https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface) · [SFace](https://github.com/zhongyy/SFace) | ⚠️ **high risk** | The training set of these weights is not stated. The paper uses CASIA-WebFace, VGGFace2 and MS-Celeb-1M, which are web-scraped celebrity photos restricted to non-commercial research (MS-Celeb-1M was withdrawn). Face embeddings are also biometric data (GDPR, BIPA…). **Do not let a product depend on this model** without review; see alternatives below. |
 | **SFace int8** (`…_int8.onnx`, `embed_backend=int8`) | Apache-2.0 | same | ⚠️ high risk (as SFace) | Official quantized version; sha256 verified on download. |
 | **SFace TFLite** (`…_int8.tflite`, `…_fp16.tflite`, `embed_backend=npu`) | Derived from the Apache-2.0 SFace weights | generated locally by `scripts/export_sface_tflite.py`; **not in git, not distributed** | ⚠️ high risk (as SFace) | Format conversion does not change the weights' license or data questions. INT8 calibration uses CC0 portraits, in memory only. |
-| **MoveNet MultiPose Lightning** (`movenet_multipose_lightning_fp16.tflite`) | Apache-2.0 | [Kaggle model page](https://www.kaggle.com/models/google/movenet) | ✅ | Released by Google. The model card lists surveillance and identification as out of scope; this project uses it only for presence, orientation and distance. Validate accuracy for conversation distances yourself. |
+| **MoveNet MultiPose Lightning** (`movenet_multipose_lightning_fp16.tflite`; `movenet_multipose_lightning.onnx` exported locally by `scripts/export_movenet_onnx.py`, not distributed) | Apache-2.0 | [Kaggle model page](https://www.kaggle.com/models/google/movenet) | ✅ | Released by Google. The model card lists surveillance and identification as out of scope; this project uses it only for presence, orientation and distance. Validate accuracy for conversation distances yourself. |
 | **PureSound `dpcrn_curriculum_v2`** (streaming ONNX + manifest, `audio_pipeline=puresound`) | Apache-2.0 (Copyright 2026 Milo Wu and PureSound contributors; code, SDK, configs, docs and weights) | [PureSound](https://github.com/mcw519/puresound), pinned commit; sha256 checked by `scripts/fetch_puresound_model.py` | ⚠️ weights yes, **datasets to be checked** | PureSound's NOTICE states that datasets and recordings are *not* covered by Apache-2.0. Typical speech-enhancement corpora have their own terms (some research-only); confirm the actual training data before commercial use. Not in git. |
 | Haar cascade (fallback, shipped with OpenCV) | Intel License Agreement (BSD-like, in the XML header) | `cv2/data/` | ✅ | Used only when YuNet is unavailable. |
 | HSV histogram "embedding" (fallback) | This project's code, no weights | `presence_demo/vision.py` | ✅ | No training data at all, but weak (mostly clothing colour). |
@@ -43,20 +43,20 @@ weights and third-party packages are **not** covered by that license; their term
 | numpy | BSD-3-Clause (with 0BSD, MIT, Zlib, CC0 parts) | ✅ | |
 | opencv-python-headless | Apache-2.0 | ⚠️ yes, with notices | The wheel bundles FFmpeg (LGPL-2.1), OpenBLAS, libvpx, libaom, OpenSSL and others (`LICENSE-3RD-PARTY.txt`). Dynamically linked LGPL is usually fine, but ship the licenses and allow replacement. |
 | psutil | BSD-3-Clause | ✅ | |
-| ai-edge-litert (LiteRT) | Apache-2.0 | ✅ | Pulls in flatbuffers (Apache-2.0), protobuf (BSD-3), ml-dtypes (Apache-2.0), tqdm (MPL-2.0 AND MIT). |
+| ai-edge-litert (LiteRT, `litert` extra) | Apache-2.0 | ✅ | Pulls in flatbuffers (Apache-2.0), protobuf (BSD-3), ml-dtypes (Apache-2.0), tqdm (MPL-2.0 AND MIT). |
 | puresound-streaming (optional extra) | Apache-2.0, with NOTICE | ✅ ship the NOTICE | Installed as a uv git dependency from the public repo; not copied into this project. |
-| onnxruntime (with the PureSound extra) | MIT | ✅ | |
+| onnxruntime (runs every model) | MIT | ✅ | GPU / NPU builds (onnxruntime-gpu, -directml, -qnn, -openvino) are MIT too, but bundle vendor libraries (CUDA, QNN SDK…) with their own terms. |
 | anyio, h11, idna, click, annotated-types, typing-inspection | MIT / BSD-3 | ✅ | |
 | typing-extensions | PSF-2.0 | ✅ | |
 | certifi, tqdm | MPL-2.0 (tqdm MPL-2.0 AND MIT) | ✅ | File-level copyleft: only changes to those files must be shared. |
 
-Development only (not shipped): pytest (MIT), httpx (BSD-3), ruff (MIT), websockets (BSD-3). The front end uses no
+Development only (not shipped): pytest (MIT), httpx (BSD-3), ruff (MIT), websockets (BSD-3), onnx (Apache-2.0). The front end uses no
 third-party JavaScript libraries and no CDN.
 
 ## Export tools (separate environment, not runtime)
 
 onnx2tf (MIT), TensorFlow / tf-keras (Apache-2.0), onnx (Apache-2.0), onnxruntime (MIT), onnx-graphsurgeon
-(Apache-2.0), onnxsim (MIT AND (Apache-2.0 OR BSD-2-Clause)), sng4onnx (MIT): all ✅.
+(Apache-2.0), onnxsim (MIT AND (Apache-2.0 OR BSD-2-Clause)), sng4onnx (MIT), tf2onnx (Apache-2.0): all ✅.
 
 NPU runtimes: NNAPI is part of Android (AOSP, Apache-2.0). Vendor NPU delegates are usually proprietary SDKs; check
 their terms with the chip vendor.

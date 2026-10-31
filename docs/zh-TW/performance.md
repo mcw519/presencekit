@@ -63,9 +63,13 @@
 
 | 後端 | 模型 | 執行方式 | 用途 |
 |---|---|---|---|
-| `fp32`（預設） | opencv_zoo SFace ONNX | OpenCV DNN，CPU | 參考基準，最準 |
-| `int8` | opencv_zoo 官方 INT8 ONNX | OpenCV DNN，CPU | 小 4 倍；ARM CPU 上常比較快 |
+| `fp32`（預設） | opencv_zoo SFace ONNX | ONNX Runtime（v0.13：OpenCV DNN） | 參考基準，最準 |
+| `int8` | opencv_zoo 官方 INT8 ONNX | ONNX Runtime（v0.13：OpenCV DNN） | 小 4 倍；ARM CPU 上常比較快 |
 | `npu` | 本專案匯出的 TFLite（`int8` 或 `fp16`） | LiteRT，可掛外部 delegate | Android NPU / GPU；伺服器上用 XNNPACK |
+
+從 v0.14 開始，`fp32` 和 `int8` 跑在 ONNX Runtime 上，使用 `PRESENCE_ORT_PROVIDERS` 指定的執行提供者；兩種執行環境的
+各階段數字見 [SDK 與 ONNX Runtime](sdk.md#實測成本apple-m-系列cpuonnxruntime-131opencv-414)。下表是 v0.13 的量測
+（OpenCV DNN，x86 伺服器）。
 
 每張都計算 embedding 的整條管線（p50 / p95 ms，640×480）：
 

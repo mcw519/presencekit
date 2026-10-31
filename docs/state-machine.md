@@ -80,6 +80,10 @@ With `presence_model = hmm` the thresholds on `P_group` replace these timeouts; 
 
 - **vision** mode: the person must be seen again; speech alone does not count.
 - **balanced / audio**: new evidence counts: a speech onset, a person reappearing, or a new person.
+- **vision** mode after `present_max_silence`: the person who stayed silent in view does not count as a return.
+  Speech from someone in view, the person leaving and coming back, or a new person does. Otherwise the session
+  ends after `end_after_away`, and that same silent person does not start a new one until they speak or leave
+  the ROI first.
 - With PureSound and `onset_needs_vision`, speech brings someone back only if vision sees a person (unless vision is
   uncertain).
 

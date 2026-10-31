@@ -71,7 +71,9 @@ it and list only the differences. *Low power* changes only performance settings,
 | Variable | Meaning |
 |---|---|
 | `PRESENCE_TOKEN` | When set, the page, API and WebSocket require `?token=` |
-| `PRESENCE_MODEL_DIR` | Where models are stored (default `./models`) |
+| `PRESENCE_MODEL_DIR` | Where models are stored (default: `models/` of a source checkout, else `~/.cache/presence-demo/models`) |
+| `PRESENCE_ORT_PROVIDERS` | ONNX Runtime execution providers, e.g. `coreml,cpu` or `auto` (default `cpu`); see [SDK and ONNX Runtime](sdk.md) |
+| `PRESENCE_ORT_THREADS`, `PRESENCE_ORT_GRAPH_OPT` | Threads per model (0 = ORT decides) and graph optimisation level (`disable`/`basic`/`extended`/`all`) |
 | `PRESENCE_FACE_EMBEDDER=hist` | Do not load SFace; use the HSV histogram fallback |
 | `PRESENCE_NPU_DELEGATE` | External TFLite delegate library for `embed_backend = npu` (server-side only) |
 | `ASSEMBLYAI_API_KEY` | Key for the optional speech recognition |

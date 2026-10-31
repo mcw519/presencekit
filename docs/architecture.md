@@ -17,7 +17,10 @@ presence_demo/
     tracks.py        Detection, Track · geometry.py boxes/IoU · tracking.py association, Kalman, appearance
     state_machine.py presence/intent scoring and the session state machine
     tracker.py       PresenceTracker (v0.12 API) · engine.py PresenceCore (typed facade: Observation -> Step)
-  detectors/         face detector / embedder / pose protocols, built-ins (YuNet, Haar, SFace, hist, MoveNet), registry
+  inference/         ONNX Runtime layer (numpy + onnxruntime only): OrtOptions (providers, threads, graph
+                     optimisation), shared sessions, in-memory graph sanitising, model catalogue + ModelStore
+  detectors/         face detector / embedder / pose protocols, built-ins (YuNet, SFace, MoveNet on ONNX Runtime;
+                     OpenCV DNN / LiteRT / Haar / hist fallbacks), registry
   identity/          cross-session re-ID: in-memory crops and store, matcher protocol + Jev client,
                      call guard (caps, breaker), decision, ContinuationDriver
   runtime/           framework-free per-connection runtime
@@ -26,6 +29,7 @@ presence_demo/
     protocol.py      wire protocol (binary tags, video framing, CLIENT_MESSAGE_TYPES)
     resources.py     process-wide models, locks, worker pools · continuity.py page lease, observation clock
     alignment.py     audio/vision timing provenance
+  sdk.py             PresenceEngine: embeddable facade (frames / audio in, Step out), no web framework, no threads
   config.py          Config dataclass (flat keys + grouped view), RANGES (validation), State enum
   tracker.py         v0.12 import path for core.tracker (re-exports)
   kalman.py          constant-velocity Kalman filter, Hungarian algorithm
@@ -33,8 +37,8 @@ presence_demo/
   intent.py          intent cues and smoothing (Layer 3)
   appearance.py      torso HSV histogram, Bhattacharyya similarity
   body.py            pose orientation, face↔body association, distance and calibration
-  vision.py          VisionPipeline (detect + embed), in-memory decode; re-exports the detectors
-  embed_backends.py  SFace fp32 / int8 / TFLite (+ delegate) backends
+  vision.py          VisionPipeline (detect + embed, ORT defaults with fallbacks), pose loader, in-memory decode
+  embed_backends.py  SFace backends: ONNX Runtime fp32 / int8, OpenCV DNN, TFLite (+ delegate)
   optimizer.py       motion gate, embedding throttle, ROI crop, adaptive fps
   audio.py           PureSound streaming glue, clean VAD, vision cross-check
   asr.py             AssemblyAI streaming client (optional)
@@ -57,33 +61,44 @@ presence_demo/
     js/              i18n · core · settings · app · audio · panels · main (classic scripts, load order matters)
     i18n/            en.js, zh-TW.js string tables
     vendor/puresound PureSound design system (unmodified)
-scripts/             benchmark, evaluation, model export / fetch, figures, config docs
+scripts/             benchmark, evaluation, model export (export_movenet_onnx.py, export_sface_tflite.py) / fetch,
+                     figures, config docs
   run_acceptance.py  unified acceptance runner CLI
   acceptance_browser_fixture.js shared browser fixture for synthetic media and app-flow checks
   acceptance_browser_reid_fixture.js re-ID controls for isolated browser acceptance
 tests/               unit, scenario, WebSocket, privacy, UI and i18n tests
 ```
 
-## Layers (v0.13)
+## Layers (v0.13, v0.14)
 
-v0.13 separates the code into layers with a one-way dependency direction. Behaviour, wire protocol, settings and
-defaults are unchanged; the old import paths keep working as re-exports.
+v0.13 separated the code into layers with a one-way dependency direction; v0.14 added the `inference` layer at the
+bottom and the `sdk` facade at the top. Wire protocol and settings are unchanged; the old import paths keep working
+as re-exports.
 
 ```
 web (FastAPI transport)  ->  runtime  ->  identity  ->  core
                                       ->  detectors ->  core
+sdk (embeddable facade)  ------------->  detectors ->  inference (ONNX Runtime)
 ```
 
 | Layer | Contains | May not import |
 |---|---|---|
-| `core` | tracking, presence/intent scoring, state machine, typed values, `PresenceCore` | anything but numpy and pure helpers (no OpenCV, no web, runtime, detectors, identity) |
+| `core` | tracking, presence/intent scoring, state machine, typed values, `PresenceCore` | anything but numpy and pure helpers (no OpenCV, no onnxruntime, no web, runtime, detectors, identity, inference) |
+| `inference` | `OrtOptions`, `load_model` / `OrtModel` (shared sessions), providers, graph sanitising, `CATALOG` / `ModelStore` | anything but numpy, onnxruntime and the standard library |
 | `detectors` | `FaceDetector`, `Embedder`, `PoseDetector` protocols, built-ins, `registry` | web framework, `web`, `runtime`, `identity`, `server` |
 | `identity` | re-ID crops/store (memory only), `IdentityMatcher`, `CallGuard`, `decide`, `ContinuationDriver` | web framework, `web`, `runtime`, `server` |
 | `runtime` | `PresenceRuntime`, `AppContext`, protocol, page continuity, process resources | `fastapi`, `starlette`, `uvicorn`, `web`, `server` |
-| `web` + `server.py` | HTTP routes, token middleware, WebSocket handshake, outbox | — |
+| `sdk` | `PresenceEngine` (vision + core + optional PureSound audio for one stream) | web framework, `web`, `runtime`, `server`, `stats` |
+| `web` + `server.py` | HTTP routes, token middleware, WebSocket handshake, outbox (needs the `web` extra) | — |
 
 `tests/test_layering.py` enforces the table statically (AST imports) and checks that importing `core`,
-`detectors`, `identity` and `runtime` never loads the web framework.
+`inference`, `detectors`, `identity`, `sdk` and `runtime` never loads the web framework.
+
+- **`inference`** runs every neural model (YuNet, SFace, MoveNet, PureSound) on ONNX Runtime with one
+  `OrtOptions` (execution providers, threads, graph optimisation; `PRESENCE_ORT_*`), one session per model per
+  process, and one model catalogue with sha256-verified downloads. See [SDK and ONNX Runtime](sdk.md).
+- **`PresenceEngine`** (`sdk`) is the embeddable entry point: frames, host VAD or PCM audio in, `Step` out. It uses
+  the same `FrameProcessor` and `PresenceCore` as the web runtime, without asyncio, threads or a transport.
 
 - **`PresenceCore`** (`core.engine`) is a typed facade over `PresenceTracker`: `update(Observation) -> Step`
   (events + the same snapshot dict). It produces exactly the tracker's steps (`tests/test_core.py`).
@@ -123,7 +138,8 @@ flowchart LR
 - **Only the newest frame is processed.** If a frame arrives while the previous one is still running, the older
   waiting frame is dropped (and counted). The browser therefore never builds up lag.
 - Detectors are shared by all connections behind a lock (`runtime/resources.py`); each connection has its own tracker,
-  audio state and re-ID store.
+  audio state and re-ID store. Model loads and first-use downloads (pose, int8 SFace) run before the lock is taken,
+  so a slow download never stalls other connections.
 - A watchdog restarts a worker that makes no progress for 5 s while input keeps arriving, and logs a stack dump.
 - Processing never waits for the network: the outbox is bounded, and when the browser or network is slow it drops new audio and superseded state messages instead of blocking the workers.
 - A random page capability lets a reconnect from the same loaded page reclaim its in-memory reference store. Every transport lease has a generation; a superseded connection cannot update the current page state. Transport interruption pauses observation time and is surfaced as a sensing interruption; it does not fabricate a normal `ENDED` transition. The pause is anchored at the last completed frame plus 3 seconds, so a delayed ticker after host sleep does not count the sleep gap as absence.
@@ -181,8 +197,10 @@ tables are public (they contain no data).
 
 - **Another detector or embedder**: implement `detectors.FaceDetector` / `detectors.Embedder` (v0.12 names
   `vision.Detector` / `vision.Embedder` still work) and pass them to `VisionPipeline(detector=…, embedder=…)`.
-  `detectors.registry.register(kind, name, factory)` names a factory; v0.13 does not yet select detectors by name
-  from settings.
+  For an ONNX model, load it with `inference.load_model(path, options)` so it shares the providers and session
+  cache. `detectors.registry.register(kind, name, factory)` names a factory; settings do not select detectors by
+  name yet.
+- **Another application**: use `sdk.PresenceEngine` (see [SDK and ONNX Runtime](sdk.md)).
 - **Another re-ID provider**: implement the `identity.IdentityMatcher` protocol
   (`async compare(ref, query, *, model, timeout) -> (score, meta)`), e.g. by subclassing `CloudReid`.
 - **Another transport**: build a `runtime.PresenceRuntime` with an `AppContext` and an outbox object, then feed it
