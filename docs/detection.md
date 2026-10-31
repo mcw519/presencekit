@@ -39,7 +39,11 @@ confidence*: they count neither as "someone" nor as "no one", which lets the hig
 
 The landmarks also give a **frontal score** between 0 and 1. It looks at how far the nose is from the midpoint
 between the eyes, relative to the eye distance: nose centred → 1 (looking at the camera), offset of half the eye
-distance or more → 0 (clear side view).
+distance or more → 0 (clear side view). Without landmarks (Haar fallback) the score is unknown and intent uses its
+neutral default.
+
+All three models (YuNet, SFace, MoveNet) run on ONNX Runtime; see [SDK and ONNX Runtime](sdk.md) for execution
+providers and model files. OpenCV DNN, LiteRT and the Haar cascade remain as fallbacks.
 
 ## 3. Who is who: SFace embeddings
 

@@ -29,7 +29,9 @@ class Config:
     cos_match: float = 0.40  # cosine >= this => same person (SFace ~0.363)
     cos_weak: float = 0.20  # with good IoU, this weaker cosine is accepted
     # --- embedding backend ---
-    embed_backend: str = "fp32"  # fp32 (OpenCV DNN) | int8 (official opencv_zoo int8 ONNX) | npu (TFLite + delegate)
+    embed_backend: str = (
+        "fp32"  # fp32 (SFace, ONNX Runtime) | int8 (official opencv_zoo int8 ONNX) | npu (TFLite + delegate)
+    )
     # external TFLite delegate .so (NNAPI / NeuroPilot); empty -> CPU. SECURITY: loading a shared library
     # runs native code, so this is set only server-side (env PRESENCE_NPU_DELEGATE), never over WebSocket.
     npu_delegate_path: str = field(default_factory=lambda: os.environ.get("PRESENCE_NPU_DELEGATE", ""))
@@ -176,6 +178,14 @@ class Config:
     def roi(self, v: tuple) -> None:
         self.face_roi = tuple(v)
 
+    def group(self, name: str) -> ConfigGroup:
+        """Grouped view (v0.13), e.g. ``cfg.group("reid").reid_threshold`` is ``cfg.reid_threshold``. See GROUPS."""
+        return ConfigGroup(self, name)
+
+    def as_groups(self) -> dict[str, dict]:
+        """Nested ``{group: {key: value}}`` copy of every field (v0.13). The flat keys remain the wire format."""
+        return {g: {k: getattr(self, k) for k in keys} for g, keys in GROUPS.items()}
+
     def update(self, d: dict) -> list[str]:
         """Validate + clamp; unknown keys / bad values are skipped. Returns warnings."""
         warnings = []
@@ -224,7 +234,7 @@ class Config:
                     new = typ(round(min(hi, max(lo, raw))) if typ is int else min(hi, max(lo, raw)))
                     if new != (typ(raw) if typ is float else round(raw)):
                         warnings.append(f"{k} clamped to {new}")
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, OverflowError):
                 warnings.append(f"invalid value for {k}")
                 continue
             setattr(self, k, new)
@@ -378,3 +388,206 @@ RANGES = {
     "reid_cap_total": (1, 10000, int),
     "reid_cost_per_call": (0.0, 10.0, float),
 }
+
+
+# --- v0.13 grouped view --------------------------------------------------------------------------------------------
+# Every Config field belongs to exactly one group. The flat keys above stay the storage, the wire format
+# (/api/config, WebSocket ``config`` messages, presets) and the documented reference. Deprecation of flat-key access
+# in favor of the grouped view is planned for the next minor version; v0.13 only adds the view.
+# Server-process settings (token, host, port, model dir, ...) are environment variables, not Config fields.
+GROUPS: dict[str, tuple[str, ...]] = {
+    "core": (
+        "face_roi",
+        "pose_roi",
+        "roi_rule",
+        "min_conf",
+        "body_min_conf",
+        "priority_mode",
+        "join_seconds",
+        "grace_seconds",
+        "absent_frames",
+        "present_frames",
+        "idle_after",
+        "base_timeout",
+        "present_timeout",
+        "empty_timeout",
+        "maybe_away_frac",
+        "end_after_away",
+        "new_group_seconds",
+        "present_max_silence",
+        "speech_join",
+        "onset_needs_vision",
+        "onset_entry_only",
+    ),
+    "tracker": (
+        "iou_match",
+        "cos_match",
+        "cos_weak",
+        "cos_match_int8",
+        "embed_ema",
+        "tracker_mode",
+        "coast_seconds",
+        "coast_present_conf",
+        "gate_mahalanobis",
+        "appearance_min_sim",
+        "appearance_ema",
+    ),
+    "presence": (
+        "presence_model",
+        "leave_halflife",
+        "detect_gain",
+        "lowconf_factor",
+        "p_active",
+        "p_maybe",
+        "p_away",
+        "away_hold_seconds",
+    ),
+    "intent": (
+        "intent_model",
+        "intent_tau",
+        "join_threshold",
+        "drop_threshold",
+        "drop_seconds",
+        "intent_weighted_presence",
+        "w_facing",
+        "w_distance",
+        "w_dwell",
+        "w_approach",
+        "w_still",
+        "w_center",
+    ),
+    "vision": ("embed_backend", "npu_delegate_path", "npu_precision"),
+    "pose": (
+        "pose_enabled",
+        "pose_interval",
+        "pose_conf",
+        "turned_away_early",
+        "turned_away_seconds",
+        "recede_ratio",
+        "distance_enabled",
+        "camera_hfov",
+        "face_width_m",
+        "shoulder_width_m",
+        "distance_calib",
+        "distance_ema",
+        "zone_min",
+        "zone_max",
+        "leave_distance",
+    ),
+    "perf": (
+        "motion_gate",
+        "motion_threshold",
+        "force_detect_seconds",
+        "embed_throttle",
+        "embed_interval",
+        "embed_move_thresh",
+        "adaptive_fps",
+        "fps_low",
+        "fps_high",
+        "roi_crop",
+        "crop_margin",
+        "max_width",
+    ),
+    "audio": (
+        "audio_pipeline",
+        "iso_onset_guard",
+        "iso_reset_on_change",
+        "clean_vad_margin_db",
+        "clean_vad_min_db",
+        "clean_vad_hang",
+        "xcheck_enabled",
+        "near_range",
+        "xcheck_hold",
+        "xcheck_stale",
+        "xcheck_require_calib",
+        "xcheck_floor_db",
+        "xcheck_recover_mix",
+        "xcheck_attack",
+        "xcheck_release",
+    ),
+    "asr": (
+        "asr_provider",
+        "asr_source",
+        "asr_feed",
+        "asr_region",
+        "asr_speech_model",
+        "asr_language_codes",
+        "asr_keyterms",
+        "asr_format_turns",
+        "asr_eot_confidence",
+        "asr_min_turn_silence",
+        "asr_max_turn_silence",
+    ),
+    "reid": (
+        "reid_enabled",
+        "reid_consent",
+        "reid_show_crops",
+        "reid_provider",
+        "reid_model",
+        "reid_threshold",
+        "reid_uncertain_low",
+        "reid_ttl",
+        "reid_max_refs",
+        "reid_min_face",
+        "reid_decision_timeout",
+        "reid_face_wait",
+        "reid_timeout",
+        "reid_cooldown",
+        "reid_cap_per_hour",
+        "reid_cap_total",
+        "reid_cost_per_call",
+    ),
+}
+_GROUP_OF = {k: g for g, keys in GROUPS.items() for k in keys}
+
+
+def group_of(key: str) -> str | None:
+    """Group name of a flat Config key (``roi`` is the legacy alias of ``face_roi``)."""
+    return _GROUP_OF.get("face_roi" if key == "roi" else key)
+
+
+class ConfigGroup:
+    """Live view of one group of a :class:`Config`: attribute reads/writes go to the flat fields."""
+
+    __slots__ = ("_cfg", "_name", "_keys")
+
+    def __init__(self, cfg: Config, name: str):
+        if name not in GROUPS:
+            raise KeyError(f"unknown config group {name}")
+        object.__setattr__(self, "_cfg", cfg)
+        object.__setattr__(self, "_name", name)
+        object.__setattr__(self, "_keys", GROUPS[name])
+
+    def __getattr__(self, k):
+        if k in self._keys:
+            return getattr(self._cfg, k)
+        raise AttributeError(f"config group {self._name} has no key {k}")
+
+    def __setattr__(self, k, v):
+        if k not in self._keys:
+            raise AttributeError(f"config group {self._name} has no key {k}")
+        setattr(self._cfg, k, v)
+
+    def __dir__(self):
+        return list(self._keys)
+
+    def __repr__(self):
+        return f"ConfigGroup({self._name}, {self.as_dict()})"
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    def keys(self) -> tuple[str, ...]:
+        return self._keys
+
+    def as_dict(self) -> dict:
+        return {k: getattr(self._cfg, k) for k in self._keys}
+
+    def update(self, d: dict) -> list[str]:
+        """Validated update restricted to this group (same rules and warnings as :meth:`Config.update`)."""
+        d = dict(d or {})
+        outside = [k for k in d if k not in self._keys]
+        for k in outside:
+            d.pop(k)
+        return [f"unknown key {k}" for k in outside] + self._cfg.update(d)

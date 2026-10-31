@@ -13,6 +13,7 @@ All work happens on in-memory numpy arrays. PRIVACY: never write frames to disk 
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
@@ -118,7 +119,21 @@ class FrameProcessor:
         self.pose_loader = pose_loader
         self._pose: PoseDetector | None = None
         self.pose_available: bool | None = None  # None = not tried yet
-        self.reset()
+        # reset() may come from another thread (the event loop) while a worker thread is inside process(); the
+        # guard only protects these two fields and is never held during inference
+        self._guard = threading.Lock()
+        self._busy = 0
+        self._reset_pending = False
+        self.counts: dict[str, int] = {}  # one dict for the processor's lifetime: stats keep a reference to it
+        self._clear()
+
+    def prepare(self, cfg: Config) -> None:
+        """Load what :meth:`process` may need (pose model, an alternative embedding model file) before the caller
+        takes a shared inference lock: a first use can download models, which must not stall other streams."""
+        if cfg.pose_enabled:
+            self._get_pose()
+        if hasattr(self.pipe, "prepare_backend"):
+            self.pipe.prepare_backend(cfg.embed_backend)
 
     def _get_pose(self) -> PoseDetector | None:
         if self._pose is None and self.pose_available is None and self.pose_loader is not None:
@@ -179,6 +194,16 @@ class FrameProcessor:
         return matched
 
     def reset(self) -> None:
+        """Forget the stream's caches and zero the counters. Safe while another thread is inside :meth:`process`:
+        the clear then runs when that frame finishes, so the in-flight frame cannot refill the caches. Never waits
+        for inference."""
+        with self._guard:
+            if self._busy:
+                self._reset_pending = True
+                return
+            self._clear()
+
+    def _clear(self) -> None:
         self.last_thumb: np.ndarray | None = None
         self.last_dets: list[Detection] | None = None
         self.last_faces: list[Detection] = []
@@ -189,18 +214,30 @@ class FrameProcessor:
         self._settings: tuple | None = None
         self.last_full = -1e9
         self.cache: list[_Cached] = []
-        self.counts = {
-            "frames": 0,
-            "skipped": 0,
-            "detect_calls": 0,
-            "embed_computed": 0,
-            "embed_reused": 0,
-            "pose_calls": 0,
-            "pose_reused": 0,
-            "detect_hits": 0,  # detector runs that found >= 1 face (in-memory diagnostic)
-        }
+        self.counts.update(
+            frames=0,
+            skipped=0,
+            detect_calls=0,
+            embed_computed=0,
+            embed_reused=0,
+            pose_calls=0,
+            pose_reused=0,
+            detect_hits=0,  # detector runs that found >= 1 face (in-memory diagnostic)
+        )
 
     def process(self, img: np.ndarray, cfg: Config, stable: bool = True) -> tuple[list[Detection], dict]:
+        with self._guard:
+            self._busy += 1
+        try:
+            return self._process(img, cfg, stable)
+        finally:
+            with self._guard:
+                self._busy -= 1
+                if self._reset_pending and not self._busy:
+                    self._reset_pending = False
+                    self._clear()
+
+    def _process(self, img: np.ndarray, cfg: Config, stable: bool) -> tuple[list[Detection], dict]:
         now = self.clock()
         h, w = img.shape[:2]
         self.counts["frames"] += 1

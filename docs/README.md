@@ -41,6 +41,7 @@ These pages explain how it works, how to run it and how to tune it. Start with *
 | Page | Content |
 |---|---|
 | [Architecture](architecture.md) | Code layout, threads, WebSocket protocol |
+| [SDK and ONNX Runtime](sdk.md) | Embedding `PresenceEngine`, execution providers, model files, porting |
 | [PoC acceptance](acceptance.md) | Target profile, thresholds, runner commands, and pending real tests |
 | [Real-device and Jev runbook](real-acceptance.md) | Operator procedure for physical camera/microphone and consented Jev checks |
 | [Privacy](privacy.md) | What is processed, what is kept in memory, what can leave the device |

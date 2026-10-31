@@ -11,9 +11,12 @@ import secrets
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+try:
+    from fastapi import FastAPI, Request
+    from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
+    from fastapi.staticfiles import StaticFiles
+except ImportError as e:  # the SDK installs without the web stack
+    raise SystemExit("the web demo needs the web extra: pip install 'presence-demo[web]' (or uv sync)") from e
 
 from . import asr as asrmod
 from . import diag
@@ -70,7 +73,8 @@ async def require_token(request: Request, call_next):
     # vendored design-system assets (public CSS + fonts, no data) load without the token
     # and the front-end code (static JS and string tables, no data) load without the token
     public = request.url.path.startswith(PUBLIC_PREFIXES) or request.url.path == "/static/app.css"
-    if TOKEN and not public and not secrets.compare_digest(request.query_params.get("token", ""), TOKEN):
+    given = request.query_params.get("token", "").encode()  # bytes: non-ASCII str would raise TypeError
+    if TOKEN and not public and not secrets.compare_digest(given, TOKEN.encode()):
         return PlainTextResponse("forbidden", status_code=403)
     resp = await call_next(request)
     if request.url.path.startswith(("/static/js/", "/static/i18n/")):

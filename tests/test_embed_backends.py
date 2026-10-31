@@ -1,4 +1,4 @@
-"""SFace embedding backends: fp32 / int8 (ONNX) / npu (TFLite + optional delegate, CPU fallback)."""
+"""SFace embedding backends: fp32 / int8 (ONNX Runtime, OpenCV DNN) / npu (TFLite + optional delegate, CPU fallback)."""
 
 from pathlib import Path
 
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.filterwarnings("ignore::pytest.PytestUnraisableExceptio
 @pytest.fixture(scope="module")
 def face():
     p = vision.VisionPipeline(allow_download=False)
-    if not isinstance(p.detector, vision.YuNetDetector):
+    if not getattr(p.detector, "landmarks", False):  # YuNet on ONNX Runtime or OpenCV DNN
         pytest.skip("YuNet model not available")
     img = cv2.imread(str(FACE))
     return img, p.detector.detect(img)[0][0]

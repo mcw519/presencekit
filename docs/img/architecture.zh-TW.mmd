@@ -1,16 +1,39 @@
 flowchart LR
-  subgraph static["presence_demo/static"]
+  subgraph static["presence_demo/static（瀏覽器）"]
+    direction TB
     HTML["index.html"] --> JS["js/*.js<br/>i18n · core · settings · app<br/>audio · panels · main"]
     JS --> I18N["i18n/en.js · zh-TW.js"]
   end
-  subgraph web["presence_demo/web"]
-    SES["session.py<br/>每個連線的主迴圈"] --> RT["runtime.py<br/>模型、鎖、執行緒池"]
-    SES --> OB["outbox.py<br/>傳送佇列"]
+  subgraph web["web 傳輸（FastAPI）"]
+    direction TB
+    SRV["server.py<br/>應用、路由、驗證"] --> SES["web/session.py<br/>handshake、接收迴圈"]
+    SES --> OB["web/outbox.py<br/>傳送佇列"]
   end
-  SRV["server.py<br/>應用、路由、驗證"] --> SES
+  subgraph runtime["presence_demo/runtime（不依賴網頁框架）"]
+    direction TB
+    PR["session.py<br/>PresenceRuntime<br/>每個連線一個"]
+    CTX["context.py AppContext<br/>resources.py<br/>模型、鎖、執行緒池"]
+    CONT["continuity.py · protocol.py<br/>alignment.py"]
+  end
+  subgraph lower[" "]
+    direction TB
+    subgraph identity["presence_demo/identity"]
+      DRV["driver.py ContinuationDriver<br/>matcher.py IdentityMatcher<br/>guard · decision<br/>store（只在記憶體）"]
+    end
+    subgraph detectors["presence_demo/detectors"]
+      DET["base.py protocol<br/>registry.py<br/>face · embed · pose<br/>由 vision.py 使用"]
+    end
+    subgraph core["presence_demo/core（只用 numpy）"]
+      ENG["engine.py PresenceCore<br/>tracker · state_machine<br/>tracking · types"]
+    end
+  end
   JS <-- "WebSocket /ws" --> SES
-  RT --> VIS["vision.py · body.py<br/>embed_backends.py"]
-  SES --> TRK["tracker.py<br/>(config.py)"]
-  SES --> AUD["audio.py<br/>PureSound"]
-  SES --> REID["reid.py"]
-  SES --> DIAG["diag.py · recording.py"]
+  SES -- "on_bytes / on_text" --> PR
+  PR -. "post" .-> OB
+  PR --> CTX
+  PR --> CONT
+  PR --> DRV
+  CTX --> DET
+  PR --> ENG
+  PR --> AUD["audio.py · PureSound<br/>diag.py · recording.py<br/>config.py"]
+  style lower fill:none,stroke:none

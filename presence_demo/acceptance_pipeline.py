@@ -461,7 +461,7 @@ def _serve(fd):
 
     from . import diag, vision
     from .audio import Isolator
-    from .web import runtime
+    from .runtime import resources as runtime  # owner of the process-wide pipeline (v0.12: web.runtime)
 
     def no_download(*args, **kwargs):
         raise RuntimeError("Downloads disabled by acceptance adapter")

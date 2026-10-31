@@ -148,3 +148,21 @@ def calibration_factor(raw_distance: float, known_m: float) -> float:
     if raw_distance <= 0 or known_m <= 0:
         raise ValueError("distances must be positive")
     return known_m / raw_distance
+
+
+def calibrate(tracker, meters) -> list[str]:
+    """Set ``distance_calib`` so the closest visible person's raw distance maps to ``meters``. Returns warnings.
+
+    ``tracker`` is a :class:`presence_demo.core.PresenceTracker` (duck-typed: ``tracks``, ``cfg``)."""
+    try:
+        known = float(meters)
+    except (TypeError, ValueError):
+        return ["calibration: invalid distance"]
+    cands = [t for t in tracker.tracks.values() if t.visible and t.dist_raw]
+    if not cands or not known > 0:
+        return ["calibration: no visible person with a distance estimate"]
+    t = min(cands, key=lambda x: x.dist_raw)
+    warns = tracker.cfg.update({"distance_calib": calibration_factor(t.dist_raw, known)})
+    for x in tracker.tracks.values():
+        x.distance = None  # restart EMA with the new factor
+    return warns + [f"calibrated: factor {tracker.cfg.distance_calib:.3f} (track #{t.id})"]

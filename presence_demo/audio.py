@@ -11,22 +11,21 @@ from __future__ import annotations
 
 import json
 import math
-import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 
+from .inference import CATALOG, OrtOptions, default_root, load_model
+
 SR = 16000
 HOP = 160  # 10 ms
 MODEL_NAME = "dpcrn_curriculum_v2"
 PURESOUND_SUBDIR = "egs/voice_isolate/pretrained_ckpt/streaming"
-PURESOUND_FILES = {  # sha256 of the files at PureSound commit 121bf62 (= model_zoo/catalog.yaml)
-    f"{MODEL_NAME}.onnx": "9a79e9eaeab9a6e288fec7216adb1c87a05b557948e8aa014f5f6096e1f375e4",
-    f"{MODEL_NAME}.json": "92de972e9dc9be407e48b51f1b8c8351493a99ee942f8c9b662ac5ab48b3aaa9",
-}
-MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
+# sha256 of the files at PureSound commit 121bf62 (= model_zoo/catalog.yaml); the catalogue is the source
+PURESOUND_FILES = {CATALOG[k].filename: CATALOG[k].sha256 for k in ("puresound", "puresound-manifest")}
+MODELS_DIR = default_root()  # honours PRESENCE_MODEL_DIR, like the vision models
 
 
 def puresound_available() -> tuple[bool, str]:
@@ -41,22 +40,11 @@ def puresound_available() -> tuple[bool, str]:
     return True, "ok"
 
 
-_session_lock = threading.Lock()
-_session_cache: dict = {}
-
-
 def _shared_session(onnx_path: Path, threads: int = 1):
-    """One ORT session per process (``run`` is thread-safe); per-stream state lives in the processor."""
-    with _session_lock:
-        key = (str(onnx_path), threads)
-        if key not in _session_cache:
-            import onnxruntime as ort
-
-            so = ort.SessionOptions()
-            so.intra_op_num_threads = threads
-            so.inter_op_num_threads = 1
-            _session_cache[key] = ort.InferenceSession(str(onnx_path), so, providers=["CPUExecutionProvider"])
-        return _session_cache[key]
+    """One ORT session per process, shared through :func:`presence_demo.inference.load_model` (``run`` is
+    thread-safe; per-stream state lives in the processor). Always the CPU provider: 10 ms frames are too small to
+    gain from an accelerator."""
+    return load_model(onnx_path, OrtOptions(providers=("cpu",), intra_op_threads=threads, inter_op_threads=1)).session
 
 
 class Isolator:

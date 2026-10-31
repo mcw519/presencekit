@@ -46,6 +46,7 @@
 | `heartbeat` | info | 每個連線每 10 秒：收到／處理／丟棄的畫面、音訊區塊、積壓、迴圈延遲、交叉確認計數 |
 | `slow_frame`、`loop_lag`、`audio_backlog`、`send_backlog` | warning | 單張超過 500 ms、事件迴圈被卡住、音訊佇列 > 200 ms、送往瀏覽器的佇列變長 |
 | `no_frames`、`no_audio`、`host_suspend` | warning | 執行中但瀏覽器停止傳送、主機曾經休眠 |
+| `bad_frame` | warning | 影像封包格式正確，但內容無法解碼成 JPEG（`frames_bad` 為累計張數；最多每 30 秒一次）。這張會略過，不算影像停滯 |
 | `vision_stalled`、`audio_stalled`、`vision_lock_timeout` | error | watchdog：worker 5 秒沒有進展（附所有執行緒的 stack dump，重啟 worker，介面顯示錯誤橫幅） |
 | `task_crash`、`task_gave_up` | error | worker 發生例外（附 traceback、退避後重啟）、重啟太多次而放棄 |
 

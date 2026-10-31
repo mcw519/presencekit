@@ -175,11 +175,36 @@ def test_vision_present_silent_long_stays():
     assert State.AWAY.value not in states(tr) and State.MAYBE_AWAY.value not in states(tr)
 
 
-def test_vision_present_max_silence_cap():
-    tr, clk = mk("vision", present_max_silence=30)
+@pytest.mark.parametrize("model", ["rules", "hmm"])
+def test_vision_present_max_silence_cap(model):
+    tr, clk = mk("vision", present_max_silence=30, presence_model=model)
     run(tr, clk, 5, [1], speaking=True)
     run(tr, clk, 31, [1])
-    assert State.AWAY.value in states(tr)
+    assert tr.state == State.AWAY
+    run(tr, clk, 60, [1])  # the same person stays in view, silent
+    # AWAY once, then ENDED (used to flip AWAY <-> ACTIVE on every frame and never end); no silent restart
+    assert states(tr).count(State.AWAY.value) == 1 and states(tr)[-1] == State.ENDED.value
+    assert tr.state == State.ENDED
+    session = tr.session
+    run(tr, clk, 2, [1], speaking=True)  # the person in view speaks: a new session
+    assert tr.state == State.ACTIVE and tr.session == session + 1
+
+
+@pytest.mark.parametrize("model", ["rules", "hmm"])
+def test_vision_capped_away_returns_on_new_evidence(model):
+    tr, clk = mk("vision", present_max_silence=30, end_after_away=30, presence_model=model)
+    run(tr, clk, 5, [1], speaking=True)
+    run(tr, clk, 31, [1])
+    assert tr.state == State.AWAY
+    run(tr, clk, 1, [1], speaking=True)  # speech from the person in view
+    assert tr.state == State.ACTIVE
+    run(tr, clk, 31, [1])
+    assert tr.state == State.AWAY
+    run(tr, clk, 10, [])  # leaves (long enough for hmm P to fall below p_maybe) ...
+    run(tr, clk, 3, [1])  # ... and comes back
+    assert tr.state == State.ACTIVE and tr.log[-1]["reason"].startswith("user returned")
+    run(tr, clk, 5, [1])  # the return restarted the silence clock: no immediate fall back to AWAY
+    assert tr.state != State.AWAY
 
 
 def test_vision_uncertain_falls_back_to_audio():

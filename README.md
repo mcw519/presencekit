@@ -42,6 +42,9 @@ actually there and engaged**, uses audio only where it helps, and writes down th
 - **Pose and distance (optional)**: MoveNet skeletons, orientation, and a calibrated distance estimate.
 - **Light enough for small devices**: motion gate, embedding throttling, adaptive fps and ROI cropping cut CPU by
   about 70%; TFLite / NPU embedding backend.
+- **Embeddable SDK on ONNX Runtime**: `presence_demo.sdk.PresenceEngine` (frames and VAD or audio in, state and
+  events out) with no web framework; every model runs on ONNX Runtime with selectable execution providers
+  (CPU, CUDA, DirectML, CoreML, QNN, OpenVINO…).
 - **Private by default**: frames are processed in memory and never stored; face fingerprints are erased when a
   session ends. Cloud speech recognition and cross-session re-ID are optional and off by default.
 - **Bilingual web UI**: English and Traditional Chinese, with live settings, presets, charts and an event log.
@@ -66,6 +69,16 @@ Optional voice isolation:
 ```bash
 uv sync --extra puresound
 uv run python scripts/fetch_puresound_model.py --clone
+```
+
+Use it from your own code (no web server; `pip install presence-demo` is enough):
+
+```python
+from presence_demo.sdk import PresenceEngine
+
+engine = PresenceEngine()
+step = engine.process_frame(bgr_frame, speaking=vad_flag)
+print(step.snapshot["state"], [e.reason for e in step.events])
 ```
 
 ## How it works
@@ -95,12 +108,13 @@ The full index is in [docs/](docs/README.md). Highlights:
 | [Tuning](docs/tuning.md) | Adapting to a new room or camera |
 | [Performance](docs/performance.md) | CPU cost, latency, NPU backends |
 | [Privacy](docs/privacy.md) | What is processed, kept and (optionally) sent out |
+| [SDK and ONNX Runtime](docs/sdk.md) | Embedding `PresenceEngine`, execution providers, model files, porting |
 | [Architecture](docs/architecture.md) | Code layout and WebSocket protocol |
 
 ## Project layout
 
 ```
-presence_demo/     core logic (tracker, models) and the FastAPI + WebSocket server
+presence_demo/     core logic, ONNX Runtime inference layer, SDK facade (sdk.py), FastAPI + WebSocket server
 presence_demo/static/  web UI (HTML, JS, string tables, vendored PureSound CSS)
 scripts/           benchmark, evaluation, model export, figure and doc generators
 tests/             unit, scenario, WebSocket, privacy, UI and i18n tests

@@ -19,7 +19,11 @@ uv run presence-demo                      # http://127.0.0.1:8000
 走開後，可以看到狀態依序變成 **MAYBE_AWAY → AWAY → ENDED**。
 
 第一次執行會把人臉模型（YuNet、SFace，幾 MB）下載到 `models/`，可以用 `PRESENCE_MODEL_DIR` 指定其他位置。
-下載失敗時會改用簡單的 Haar + 顏色直方圖備援，demo 仍然可以啟動。
+所有模型都跑在 ONNX Runtime 上（預設 CPU；`PRESENCE_ORT_PROVIDERS` 可以選其他執行提供者）。下載失敗時會改用簡單的
+Haar + 顏色直方圖備援，demo 仍然可以啟動。
+
+`uv sync` 會安裝 SDK、網頁 demo 和測試工具。在這個 repository 之外，`pip install "presence-demo[web]"` 安裝 demo；
+單純 `pip install presence-demo` 只有 SDK（見 [SDK 與 ONNX Runtime](sdk.md)）。
 
 ## 開放到網路上
 
@@ -42,7 +46,7 @@ uv run presence-demo --host 0.0.0.0 --port 8000
 
 | 功能 | 開啟方式 | 說明 |
 |---|---|---|
-| 身體姿勢（MoveNet） | 設定 → 姿勢，或「推薦」預設組合 | [偵測](detection.md) |
+| 身體姿勢（MoveNet） | 設定 → 姿勢，或「推薦」預設組合；要用 ONNX Runtime 取代 LiteRT，先執行一次 `scripts/export_movenet_onnx.py` | [偵測](detection.md)、[SDK](sdk.md#模型) |
 | 距離估計 | 設定 → 距離，再做「距離校正」 | [偵測](detection.md) |
 | PureSound 人聲分離 | `uv sync --extra puresound` 和 `uv run python scripts/fetch_puresound_model.py --clone` | [音訊](audio.md) |
 | 雲端語音辨識 | 設定 → 語音辨識，加上 API key | [語音辨識](asr.md) |

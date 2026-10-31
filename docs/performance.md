@@ -65,9 +65,13 @@ Per-stage latency, 2 fps, a moving face at 640×480, all savers on (p50 ms):
 
 | Backend | Model | Runtime | Use |
 |---|---|---|---|
-| `fp32` (default) | opencv_zoo SFace ONNX | OpenCV DNN, CPU | Reference, most accurate |
-| `int8` | opencv_zoo official INT8 ONNX | OpenCV DNN, CPU | 4× smaller; often faster on ARM CPUs |
+| `fp32` (default) | opencv_zoo SFace ONNX | ONNX Runtime (v0.13: OpenCV DNN) | Reference, most accurate |
+| `int8` | opencv_zoo official INT8 ONNX | ONNX Runtime (v0.13: OpenCV DNN) | 4× smaller; often faster on ARM CPUs |
 | `npu` | TFLite exported by this project (`int8` or `fp16`) | LiteRT, optional external delegate | Android NPU / GPU; XNNPACK on a server |
+
+Since v0.14 `fp32` and `int8` run on ONNX Runtime with the execution providers from `PRESENCE_ORT_PROVIDERS`;
+per-stage numbers for both runtimes are in [SDK and ONNX Runtime](sdk.md#measured-cost-apple-m-series-cpu-onnxruntime-131-opencv-414).
+The table below is the v0.13 measurement (OpenCV DNN, x86 server).
 
 Whole pipeline with an embedding on every frame (p50 / p95 ms, 640×480):
 

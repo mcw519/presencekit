@@ -41,6 +41,7 @@ presence-demo 替對話裝置回答一個問題：**正在跟我說話的人（�
 | 頁面 | 內容 |
 |---|---|
 | [架構](architecture.md) | 程式結構、執行緒、WebSocket 協定 |
+| [SDK 與 ONNX Runtime](sdk.md) | 嵌入 `PresenceEngine`、執行提供者、模型檔、移植 |
 | [PoC 驗收](acceptance.md) | 目標環境、門檻、runner 指令與待實測項目 |
 | [真實裝置與 Jev 驗收流程](real-acceptance.md) | 實體鏡頭／麥克風及取得同意後 Jev 驗收的操作程序 |
 | [隱私](privacy.md) | 處理什麼、記憶體裡保存什麼、什麼可能離開裝置 |

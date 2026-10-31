@@ -3,6 +3,84 @@
 > From 0.12.0 on, entries are written in English. Older entries are kept as written (Traditional Chinese) and may
 > mention the previous upper-case doc names (e.g. `docs/REID.md` is now `docs/reid.md`).
 
+## 0.14.0 — unreleased
+
+SDK release: every neural model runs on ONNX Runtime, and the detection logic can be embedded without the web
+demo. Tracking, presence and state-machine behaviour, wire protocol and settings are unchanged (exceptions under
+*Fixes*). See [docs/sdk.md](docs/sdk.md).
+
+- **`presence_demo.inference`** (numpy + onnxruntime only): `OrtOptions` (execution providers with aliases and
+  `auto`, threads, graph optimisation; `PRESENCE_ORT_PROVIDERS` / `PRESENCE_ORT_THREADS` / `PRESENCE_ORT_GRAPH_OPT`),
+  `load_model` with one shared session per (file, options) and an automatic CPU fallback when an accelerator fails,
+  in-memory graph sanitising (weights listed as graph inputs are removed so ORT can fold constants; no `onnx`
+  dependency), and one model catalogue + `ModelStore` (sha256-verified, atomic downloads; the root honours
+  `PRESENCE_MODEL_DIR` everywhere, defaults to the per-user cache outside a source checkout).
+- **Detectors on ONNX Runtime**: `OrtYuNetDetector` (YuNet-s dynamic-input export, same weights; reproduces
+  OpenCV `FaceDetectorYN` padding, decoding and NMS within 1e-3 px), `OrtSFace` (fp32 and the official int8;
+  cosine 1.0 vs OpenCV), `OrtMoveNetDetector` (local export by the new `scripts/export_movenet_onnx.py`, validated
+  against LiteRT; LiteRT stays the fallback when the ONNX file is absent). PureSound sessions are created through
+  the same layer. Measured on Apple M-series CPU: YuNet 4.6 → 2.7 ms, SFace 5.4 → 3.0 ms; MoveNet 3.2 → 5.2 ms
+  (slower than LiteRT's XNNPACK). OpenCV DNN, LiteRT and Haar remain as fallbacks; registry names `yunet`, `sface`,
+  `movenet` now mean the ORT implementations (`yunet-opencv`, `movenet-tflite` added).
+- **`presence_demo.sdk.PresenceEngine`**: frames (BGR or JPEG), host VAD or PureSound PCM in, `Step` out; settings,
+  distance calibration, reset and diagnostics; no web framework, asyncio or threads (import is checked to load
+  neither the web stack nor psutil).
+- **Packaging**: `onnxruntime` is a core dependency; the web demo moved to the `web` extra and LiteRT to the
+  `litert` extra (`uv sync` still installs both for development). `presence-demo` without the web extra exits with
+  an install hint.
+- **Web UI / diagnostics**: Resources shows an ONNX Runtime row (version, accelerator, providers);
+  `VisionPipeline.info()` adds `onnxruntime` and `ort_providers`.
+- **Fixes** (from a code review): model loads and first-use downloads (pose, int8 SFace) no longer run while the
+  process-wide vision lock is held, and downloads have a timeout; `audio.MODELS_DIR` ignored `PRESENCE_MODEL_DIR`;
+  the YuNet OpenCV and MoveNet TFLite files are now checksum-verified; Haar-fallback rows reported a fully profile
+  face (`frontal = 0`), which blocked joining with `intent_model = score` (now unknown → neutral default); an
+  infinite value for an integer setting raised `OverflowError` instead of a warning; dwell and intent smoothing
+  treated a timestamp of exactly 0 as missing (virtual clocks); a non-ASCII `?token=` caused HTTP 500 instead of a
+  refusal. `calibrate` moved to `presence_demo.body` (re-exported from `runtime.resources` and `server`).
+- **State machine fixes**: with `priority_mode = vision` and `present_max_silence > 0`, a silent person in view made
+  the state flip AWAY ↔ ACTIVE on every evaluation and the session never ended (rules and hmm). Continued silent
+  presence is no longer a return from that AWAY: speech from someone in view, a re-entry or a new person is (the
+  silence clock restarts on the return). Otherwise the session ends after `end_after_away`, and the same silent
+  person does not restart it until they speak or leave the ROI. A NEW_GROUP timer still pending when a session
+  ended survived into ENDED and blocked every later join, so with `intent_model = score` no session could start
+  again; `_end()` now clears it.
+- **Runtime fixes**: `AssemblyAIStream.close()` awaited a full queue that nobody drained once the stream had given
+  up (no key, retries exhausted), hanging the audio worker and the connection close; it no longer waits. 0x03
+  recording packets were posted outside the outbox back-pressure (unbounded growth with a slow client); they now
+  share the audio bound, so a slow client gets gaps in its recording instead. Frames that pass the envelope check
+  but do not decode no longer make the watchdog restart the vision worker every 5 s (new `bad_frame` warning).
+  `FrameProcessor.reset()` from the event loop while a worker thread is inside `process()` is now deferred until
+  that frame finishes (the in-flight frame cannot refill the caches) and never waits for inference; its counters
+  are zeroed in place, so the stats keep a valid reference after a watchdog restart.
+
+## 0.13.0 — 2026-10-30
+
+Architecture release: the code is split into layers with a one-way dependency direction. No change in tracking,
+presence, audio, re-ID behaviour, wire protocol, settings or defaults; no new features or models. See
+[docs/architecture.md](docs/architecture.md#layers-v013).
+
+- **`presence_demo.core`** (numpy only): typed values (`Observation`, `VideoFrame`, `PresenceEvent`, `Step`), the
+  tracker split into `tracks` / `geometry` / `tracking` / `state_machine` / `tracker`, and `PresenceCore`, a typed
+  facade (`update(Observation) -> Step`) that yields exactly the tracker's steps.
+- **`presence_demo.detectors`**: `FaceDetector`, `Embedder`, `PoseDetector` protocols, the built-ins (YuNet, Haar,
+  SFace, histogram, MoveNet) and a small name registry (`detectors.registry`). Settings do not select detectors by
+  name yet.
+- **`presence_demo.identity`**: re-ID split into crops, in-memory reference store, key handling, `IdentityMatcher`
+  protocol + Jev client, call guard (caps, breaker), decision and `ContinuationDriver`. Crops are still kept in
+  memory only.
+- **`presence_demo.runtime`** (no FastAPI/Starlette/uvicorn): `PresenceRuntime` holds all per-connection logic that
+  was inside the `/ws` handler; `AppContext` lists the process-wide dependencies it receives (references only;
+  ownership unchanged); protocol (now with named binary tags and `CLIENT_MESSAGE_TYPES`), alignment, page continuity
+  and process resources moved here. `web/session.py` is now the transport only.
+- **Grouped settings view**: `Config.group(name)` / `Config.as_groups()`. Flat keys remain the wire and preset format
+  and are fully supported; a deprecation of flat keys in Python code is planned for the next version (no warnings
+  in 0.13).
+- **Compatibility**: the 0.12 import paths (`presence_demo.tracker`, `vision`, `reid`, `web.runtime`,
+  `web.protocol`, `web.alignment`, `web.continuity`) re-export the moved objects. The pipeline singleton now lives
+  in `runtime.resources`; assign `runtime.resources._pipeline` instead of `web.runtime._pipeline` (internal).
+- **Tests**: `tests/test_layering.py` enforces the import rules (static, plus a subprocess check that the lower
+  layers never load the web framework); new `test_core.py`, `test_runtime.py` and detector/identity tests.
+
 ## 0.12.0 — 2026-10-16
 
 Clean-up release: no change in tracking, presence or audio behaviour.

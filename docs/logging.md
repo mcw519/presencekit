@@ -63,6 +63,7 @@ Every record is also kept in an in-memory ring buffer that feeds the UI **Event 
 | `audio_backlog` | warning | Audio queue > 200 ms |
 | `send_backlog` | warning | Outbound queue to the browser is growing (slow client or network) |
 | `no_frames`, `no_audio` | warning | Running, but the browser stopped sending |
+| `bad_frame` | warning | A video frame passed the envelope check but did not decode as JPEG (`frames_bad` so far; at most every 30 s). The frame is skipped; it does not count as a vision stall |
 | `vision_stalled`, `audio_stalled` | error | Watchdog: a worker made no progress for 5 s while input was arriving. A stack dump of all threads is logged, the worker is restarted and the UI shows an error banner |
 | `vision_lock_timeout` | error | The shared detector was held for longer than the timeout (stack dump attached) |
 | `task_crash` | error | A worker raised; the full traceback is logged and the worker restarts with backoff |

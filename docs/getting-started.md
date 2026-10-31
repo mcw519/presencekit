@@ -20,8 +20,13 @@ around your face, the state strip turns **ACTIVE**, and the people list shows yo
 watch it go through **MAYBE_AWAY → AWAY → ENDED**.
 
 The first run downloads the face models (YuNet and SFace, a few MB) into `models/`. Set `PRESENCE_MODEL_DIR` to
-put them somewhere else. If the download fails, a simple Haar + colour-histogram fallback is used so the demo
-still starts.
+put them somewhere else. All models run on ONNX Runtime (CPU by default; `PRESENCE_ORT_PROVIDERS` picks another
+execution provider). If the download fails, a simple Haar + colour-histogram fallback is used so the demo still
+starts.
+
+`uv sync` installs the SDK, the web demo and the test tools. Outside this repository, `pip install
+"presence-demo[web]"` installs the demo; plain `pip install presence-demo` is the SDK only (see
+[SDK and ONNX Runtime](sdk.md)).
 
 ## Exposing it on a network
 
@@ -47,7 +52,7 @@ with `zh` → 繁體中文, otherwise English). Use the **EN / 中文** switch i
 
 | Feature | How to enable | Read more |
 |---|---|---|
-| Body pose (MoveNet) | Settings → Pose, or the *Recommended* preset | [Detection](detection.md) |
+| Body pose (MoveNet) | Settings → Pose, or the *Recommended* preset; for ONNX Runtime instead of LiteRT, run `scripts/export_movenet_onnx.py` once | [Detection](detection.md), [SDK](sdk.md#models) |
 | Distance estimate | Settings → Distance, then *Distance calibration* | [Detection](detection.md) |
 | PureSound voice isolation | `uv sync --extra puresound` and `uv run python scripts/fetch_puresound_model.py --clone` | [Audio](audio.md) |
 | Cloud speech recognition | Settings → Speech recognition + an API key | [ASR](asr.md) |

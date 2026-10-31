@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from presence_demo.audio import PURESOUND_FILES, PURESOUND_SUBDIR  # noqa: E402
+from presence_demo.inference import default_root  # noqa: E402
 
 REPO = "https://github.com/mcw519/puresound.git"
 
@@ -59,7 +60,9 @@ def main() -> None:
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--from", dest="src", type=Path, help="path to a PureSound clone")
     g.add_argument("--clone", action="store_true", help="shallow-clone the public PureSound repo to a temp dir")
-    ap.add_argument("--dest", type=Path, default=ROOT / "models")
+    ap.add_argument(
+        "--dest", type=Path, default=default_root(), help="model store (default: models/ or $PRESENCE_MODEL_DIR)"
+    )
     a = ap.parse_args()
     if a.src:
         copy_from(a.src, a.dest)

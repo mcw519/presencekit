@@ -37,6 +37,8 @@ presence-demo 看的是**誰真的在、誰真的在互動**，只在有幫助�
 - **知道聲音從哪裡來的音訊（選用）**：PureSound 人聲分離，再用影像交叉確認，電視或遠處的人聲不會被當成使用者。
 - **姿勢與距離（選用）**：MoveNet 骨架、朝向和可校正的距離估計。
 - **小裝置也跑得動**：移動閘門、embedding 節流、自適應 fps、ROI 裁切，CPU 約省 70%；支援 TFLite / NPU embedding 後端。
+- **跑在 ONNX Runtime 上的可嵌入 SDK**：`presence_demo.sdk.PresenceEngine`（畫面與 VAD 或音訊進，狀態與事件出），不需要
+  網頁框架；所有模型都跑在 ONNX Runtime，可選擇執行提供者（CPU、CUDA、DirectML、CoreML、QNN、OpenVINO…）。
 - **預設保護隱私**：畫面只在記憶體中處理，從不保存；臉部特徵在 session 結束時清除。雲端語音辨識和跨 session
   使用者判斷都是選用，預設關閉。
 - **雙語網頁介面**：英文和繁體中文，可即時調整設定、預設組合、圖表和事件紀錄。
@@ -60,6 +62,16 @@ uv run presence-demo            # 開啟 http://127.0.0.1:8000，按「開始」
 ```bash
 uv sync --extra puresound
 uv run python scripts/fetch_puresound_model.py --clone
+```
+
+在自己的程式裡使用（不需要網頁伺服器；`pip install presence-demo` 就夠了）：
+
+```python
+from presence_demo.sdk import PresenceEngine
+
+engine = PresenceEngine()
+step = engine.process_frame(bgr_frame, speaking=vad_flag)
+print(step.snapshot["state"], [e.reason for e in step.events])
 ```
 
 ## 運作原理
@@ -88,12 +100,13 @@ flowchart LR
 | [調參指南](docs/zh-TW/tuning.md) | 適應新的房間或鏡頭 |
 | [效能](docs/zh-TW/performance.md) | CPU 成本、延遲、NPU 後端 |
 | [隱私](docs/zh-TW/privacy.md) | 處理什麼、保存什麼、（選用時）送出什麼 |
+| [SDK 與 ONNX Runtime](docs/zh-TW/sdk.md) | 嵌入 `PresenceEngine`、執行提供者、模型檔、移植 |
 | [架構](docs/zh-TW/architecture.md) | 程式結構和 WebSocket 協定 |
 
 ## 專案結構
 
 ```
-presence_demo/         核心邏輯（追蹤器、模型）和 FastAPI + WebSocket 伺服器
+presence_demo/         核心邏輯、ONNX Runtime 推論層、SDK 介面（sdk.py）、FastAPI + WebSocket 伺服器
 presence_demo/static/  網頁介面（HTML、JS、字串表、vendored PureSound CSS）
 scripts/               基準測試、評估、模型匯出、圖片與文件產生器
 tests/                 單元、情境、WebSocket、隱私、介面和 i18n 測試

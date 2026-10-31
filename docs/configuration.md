@@ -21,6 +21,18 @@ Settings are saved in the browser (`localStorage["presence-cfg-v1"]`) and re-sen
 exported and imported as JSON. Saved settings override newer defaults, so press **Defaults** after upgrading if
 you want the new ones.
 
+## Grouped view (v0.13)
+
+`Config` keeps its flat keys: they remain the storage, the wire format (`/api/config`, WebSocket `config`
+messages, presets, exported JSON) and the reference below, and they work unchanged in v0.13. In addition every
+key belongs to exactly one group in `presence_demo.config.GROUPS` (`core`, `tracker`, `presence`, `intent`,
+`vision`, `pose`, `perf`, `audio`, `asr`, `reid`). `cfg.group("reid").reid_threshold` is the same value as
+`cfg.reid_threshold`; `cfg.group(name).update({...})` applies the normal validation to that group only, and
+`cfg.as_groups()` returns a nested copy. Server-process settings stay environment variables.
+
+> **Deprecation planned:** direct flat-key access from Python code is planned to be deprecated in the **next**
+> version in favor of the grouped view. v0.13 emits no warnings, and the flat wire format is not affected.
+
 ## Dependencies between modules
 
 | Module | Switch / mode | Notes |
@@ -59,7 +71,9 @@ it and list only the differences. *Low power* changes only performance settings,
 | Variable | Meaning |
 |---|---|
 | `PRESENCE_TOKEN` | When set, the page, API and WebSocket require `?token=` |
-| `PRESENCE_MODEL_DIR` | Where models are stored (default `./models`) |
+| `PRESENCE_MODEL_DIR` | Where models are stored (default: `models/` of a source checkout, else `~/.cache/presence-demo/models`) |
+| `PRESENCE_ORT_PROVIDERS` | ONNX Runtime execution providers, e.g. `coreml,cpu` or `auto` (default `cpu`); see [SDK and ONNX Runtime](sdk.md) |
+| `PRESENCE_ORT_THREADS`, `PRESENCE_ORT_GRAPH_OPT` | Threads per model (0 = ORT decides) and graph optimisation level (`disable`/`basic`/`extended`/`all`) |
 | `PRESENCE_FACE_EMBEDDER=hist` | Do not load SFace; use the HSV histogram fallback |
 | `PRESENCE_NPU_DELEGATE` | External TFLite delegate library for `embed_backend = npu` (server-side only) |
 | `ASSEMBLYAI_API_KEY` | Key for the optional speech recognition |

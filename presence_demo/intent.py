@@ -22,7 +22,8 @@ def frontal_from_landmarks(row) -> float | None:
     """Frontal score from a YuNet row (x, y, w, h, re_x, re_y, le_x, le_y, nose_x, nose_y, ...).
 
     Uses the horizontal offset of the nose from the eye midpoint relative to the eye distance:
-    0 offset -> 1.0 (frontal), offset >= 0.5 eye distance -> 0 (profile).
+    0 offset -> 1.0 (frontal), offset >= 0.5 eye distance -> 0 (profile). None when the row has no landmarks
+    (e.g. the Haar fallback, whose landmarks are all zero), so the caller uses its default.
     """
     try:
         rx, lx, nx = float(row[4]), float(row[6]), float(row[8])
@@ -30,7 +31,7 @@ def frontal_from_landmarks(row) -> float | None:
         return None
     eye = abs(lx - rx)
     if eye < 1e-6:
-        return 0.0
+        return None
     off = abs(nx - (lx + rx) / 2) / eye
     return max(0.0, min(1.0, 1.0 - off / 0.5))
 

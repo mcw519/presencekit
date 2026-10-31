@@ -79,6 +79,9 @@ ENDED 時，以下情況會開始 session：
 
 - **vision** 模式：要再次看到人，只有說話不算。
 - **balanced / audio**：新的證據就算數：說話開頭、人重新出現，或新的人。
+- **vision** 模式因 `present_max_silence` 進入 AWAY 時：一直安靜待在畫面裡的人不算回來；畫面裡有人說話、那個人離開後
+  再回來，或出現新的人才算。否則過了 `end_after_away` 後 session 結束，而且同一個安靜的人要先說話或離開 ROI，才會開始
+  新的 session。
 - 使用 PureSound 且開啟 `onset_needs_vision` 時，說話要搭配影像看到人才能讓人回來（影像不確定時例外）。
 
 ## NEW_GROUP
