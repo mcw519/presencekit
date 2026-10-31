@@ -4,7 +4,7 @@
 
 Perception turns a JPEG frame into a list of **detections**: a face box, a confidence, a 128-number face
 fingerprint, and optionally a body skeleton, a clothing-colour histogram and a distance. Everything happens in
-memory (`presence_demo/vision.py`, `body.py`, `appearance.py`, `optimizer.py`).
+memory (`presencekit/vision.py`, `body.py`, `appearance.py`, `optimizer.py`).
 
 ```mermaid
 flowchart LR

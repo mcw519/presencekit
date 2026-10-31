@@ -12,7 +12,7 @@
 
 ```bash
 uv sync
-uv run presence-demo                      # http://127.0.0.1:8000
+uv run presencekit                      # http://127.0.0.1:8000
 ```
 
 打開網頁，按 **開始**，允許鏡頭和麥克風。站到鏡頭前：臉上會出現框，狀態列變成 **ACTIVE**，人員清單把你列為參與者。
@@ -22,8 +22,8 @@ uv run presence-demo                      # http://127.0.0.1:8000
 所有模型都跑在 ONNX Runtime 上（預設 CPU；`PRESENCE_ORT_PROVIDERS` 可以選其他執行提供者）。下載失敗時會改用簡單的
 Haar + 顏色直方圖備援，demo 仍然可以啟動。
 
-`uv sync` 會安裝 SDK、網頁 demo 和測試工具。在這個 repository 之外，`pip install "presence-demo[web]"` 安裝 demo；
-單純 `pip install presence-demo` 只有 SDK（見 [SDK 與 ONNX Runtime](sdk.md)）。
+`uv sync` 會安裝 SDK、網頁 demo 和測試工具。在這個 repository 之外，`pip install "presencekit[web]"` 安裝 demo；
+單純 `pip install presencekit` 只有 SDK（見 [SDK 與 ONNX Runtime](sdk.md)）。
 
 ## 開放到網路上
 
@@ -31,7 +31,7 @@ Haar + 顏色直方圖備援，demo 仍然可以啟動。
 
 ```bash
 export PRESENCE_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(16))')"
-uv run presence-demo --host 0.0.0.0 --port 8000
+uv run presencekit --host 0.0.0.0 --port 8000
 # 開啟 http://<主機>:8000/?token=<你的權杖>
 ```
 

@@ -12,8 +12,8 @@ import cv2
 import numpy as np
 import pytest
 
-from presence_demo import reid
-from presence_demo.tracker import Config
+from presencekit import reid
+from presencekit.tracker import Config
 
 SECRET = "sk-test-SECRET-123456"
 
@@ -369,7 +369,7 @@ def test_live_smoke():
 def test_endpoints_never_echo_key(caplog):
     from fastapi.testclient import TestClient
 
-    from presence_demo import server
+    from presencekit import server
 
     caplog.set_level(logging.DEBUG)
     c = TestClient(server.app)

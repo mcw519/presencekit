@@ -3,11 +3,11 @@
 import numpy as np
 from fastapi.testclient import TestClient
 
-from presence_demo.acceptance_cases import PROFILE_CONFIG, Clock
-from presence_demo.config import Config
-from presence_demo.reid import Ref
-from presence_demo.tracker import Detection, PresenceTracker
-from presence_demo.web.continuity import ObservationClock, PageRegistry
+from presencekit.acceptance_cases import PROFILE_CONFIG, Clock
+from presencekit.config import Config
+from presencekit.reid import Ref
+from presencekit.tracker import Detection, PresenceTracker
+from presencekit.web.continuity import ObservationClock, PageRegistry
 
 
 def test_observation_pause_does_not_turn_missing_input_into_departure():
@@ -79,8 +79,8 @@ def test_replacing_transport_interrupts_old_work_and_late_release_is_ignored():
 
 
 def test_refresh_beacon_wipes_only_its_page_without_revealing_capability(monkeypatch):
-    from presence_demo import server
-    from presence_demo.web import continuity
+    from presencekit import server
+    from presencekit.web import continuity
 
     registry = PageRegistry()
     monkeypatch.setattr(continuity, "PAGES", registry)
@@ -114,7 +114,7 @@ def test_delayed_sensor_pause_excludes_host_sleep_without_rewinding():
     wall = Clock()
     observed = ObservationClock(wall)
     tracker = PresenceTracker(Config(**PROFILE_CONFIG), clock=observed)
-    from presence_demo.tracker import State
+    from presencekit.tracker import State
 
     tracker.state = State.AWAY
     tracker.state_since = observed()
@@ -130,8 +130,8 @@ def test_delayed_sensor_pause_excludes_host_sleep_without_rewinding():
 def test_app_cleans_orphan_without_another_connection(monkeypatch):
     import time
 
-    from presence_demo import server
-    from presence_demo.web import continuity
+    from presencekit import server
+    from presencekit.web import continuity
 
     clock = Clock()
     registry = PageRegistry(clock)
@@ -152,7 +152,7 @@ def test_initializing_old_transport_cannot_replace_new_owner(monkeypatch):
     import asyncio
     import threading
 
-    from presence_demo.web import session
+    from presencekit.web import session
 
     registry = PageRegistry()
     monkeypatch.setattr(session, "PAGES", registry)
@@ -201,7 +201,7 @@ def test_sensor_lease_caps_all_clock_readers_before_ticker_runs():
     wall = Clock()
     observed = ObservationClock(wall)
     tracker = PresenceTracker(Config(**PROFILE_CONFIG), clock=observed)
-    from presence_demo.tracker import State
+    from presencekit.tracker import State
 
     tracker.state = State.AWAY
     tracker.state_since = observed()
@@ -233,7 +233,7 @@ def test_new_frame_first_after_host_sleep_honors_previous_sensor_lease():
 def test_page_subprotocol_is_masked_even_in_debug_handshake_logs():
     import logging
 
-    from presence_demo.diag import Redact
+    from presencekit.diag import Redact
 
     cap = "a" * 32
     record = logging.LogRecord(
@@ -245,8 +245,8 @@ def test_page_subprotocol_is_masked_even_in_debug_handshake_logs():
 
 
 def test_websocket_subprotocol_reconnect_keeps_page_session_counter(monkeypatch):
-    from presence_demo import server
-    from presence_demo.web import continuity, session
+    from presencekit import server
+    from presencekit.web import continuity, session
 
     registry = PageRegistry()
     monkeypatch.setattr(continuity, "PAGES", registry)

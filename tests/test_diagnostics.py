@@ -5,9 +5,9 @@ from pathlib import Path
 
 from sources import server_source, ui_source
 
-from presence_demo import diag
+from presencekit import diag
 
-ROOT = Path(__file__).parents[1] / "presence_demo"
+ROOT = Path(__file__).parents[1] / "presencekit"
 HTML = ui_source()
 CLIENT_ONLY = {"fps", "vad_k", "vad_min", "vad_hang"}  # browser-side send rate / VAD
 SRV = server_source()
@@ -36,7 +36,7 @@ def test_diagnostic_events_present():
 def test_client_report_and_normal_close_over_ws():
     from fastapi.testclient import TestClient
 
-    from presence_demo import server
+    from presencekit import server
 
     q = f"?token={server.TOKEN}" if server.TOKEN else ""
     with TestClient(server.app).websocket_connect("/ws" + q) as ws:

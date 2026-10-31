@@ -6,8 +6,8 @@ import cv2
 import numpy as np
 import pytest
 
-from presence_demo import vision
-from presence_demo.vision import MODEL_DIR, MOVENET, MoveNetMultiPoseDetector, VisionPipeline
+from presencekit import vision
+from presencekit.vision import MODEL_DIR, MOVENET, MoveNetMultiPoseDetector, VisionPipeline
 
 FACE = Path(__file__).parent / "data" / "face.jpg"
 

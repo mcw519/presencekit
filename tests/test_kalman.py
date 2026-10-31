@@ -5,10 +5,10 @@ import itertools
 import numpy as np
 import pytest
 
-from presence_demo.appearance import descriptor, torso_box
-from presence_demo.body import Body
-from presence_demo.kalman import KalmanBox, appearance_similarity, hungarian
-from presence_demo.tracker import Config, Detection, PresenceTracker
+from presencekit.appearance import descriptor, torso_box
+from presencekit.body import Body
+from presencekit.kalman import KalmanBox, appearance_similarity, hungarian
+from presencekit.tracker import Config, Detection, PresenceTracker
 
 
 class Clock:

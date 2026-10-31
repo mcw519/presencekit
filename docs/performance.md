@@ -234,7 +234,7 @@ Reproduce after saving an old project snapshot (including access to its models):
 ```bash
 python scripts/benchmark_round2.py --source /path/to/round-one --output /tmp/pose-before.json
 python scripts/benchmark_round2.py --output /tmp/pose-after.json
-python scripts/benchmark_frontend.py --before-dir /path/to/round-one/presence_demo/static --mode capture --seconds 6 --output /tmp/capture.json
+python scripts/benchmark_frontend.py --before-dir /path/to/round-one/presencekit/static --mode capture --seconds 6 --output /tmp/capture.json
 python scripts/benchmark_realtime.py --scene face --fps 5 --full-vision --transport binary --output /tmp/live.json
 ```
 

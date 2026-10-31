@@ -27,7 +27,7 @@ sys.path.insert(0, str(ROOT))
 
 import eval_tracking as ev  # noqa: E402
 
-from presence_demo.tracker import Config, PresenceTracker  # noqa: E402
+from presencekit.tracker import Config, PresenceTracker  # noqa: E402
 
 OUT = ROOT / "docs" / "img"
 STATE_COLOR = {"ACTIVE": "#2e7d32", "IDLE": "#7cb342", "MAYBE_AWAY": "#f9a825", "AWAY": "#e65100", "ENDED": "#9e9e9e"}

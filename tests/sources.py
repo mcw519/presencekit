@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-PKG = Path(__file__).parents[1] / "presence_demo"
+PKG = Path(__file__).parents[1] / "presencekit"
 STATIC = PKG / "static"
 
 

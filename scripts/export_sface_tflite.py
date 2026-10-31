@@ -126,7 +126,7 @@ def main() -> None:
 
 def validate(crops) -> None:
     sys.path.insert(0, str(ROOT))
-    from presence_demo.embed_backends import TFLiteSFace
+    from presencekit.embed_backends import TFLiteSFace
 
     ref = cv2.FaceRecognizerSF.create(str(ONNX), "")
     for p in (OUT_FP16, OUT_INT8):

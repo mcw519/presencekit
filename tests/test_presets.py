@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 from sources import server_source, ui_source
 
-from presence_demo.tracker import Config
+from presencekit.tracker import Config
 
-ROOT = Path(__file__).parents[1] / "presence_demo"
+ROOT = Path(__file__).parents[1] / "presencekit"
 HTML = ui_source()
 CLIENT_ONLY = {"fps", "vad_k", "vad_min", "vad_hang"}  # browser-side send rate / VAD
 SRV = server_source()

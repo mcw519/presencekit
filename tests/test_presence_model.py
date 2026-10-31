@@ -5,8 +5,8 @@ import math
 import numpy as np
 import pytest
 
-from presence_demo import presence_model as pm
-from presence_demo.tracker import Config, Detection, PresenceTracker, State
+from presencekit import presence_model as pm
+from presencekit.tracker import Config, Detection, PresenceTracker, State
 
 
 class Clock:

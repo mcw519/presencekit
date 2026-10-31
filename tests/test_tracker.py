@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from presence_demo.tracker import Config, Detection, PresenceTracker, State
+from presencekit.tracker import Config, Detection, PresenceTracker, State
 
 
 class Clock:

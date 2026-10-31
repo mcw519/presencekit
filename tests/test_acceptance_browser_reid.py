@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from presence_demo import acceptance_browser_reid as adapter
+from presencekit import acceptance_browser_reid as adapter
 
 
 @pytest.mark.parametrize("seconds", [None, "3", 2, 3601, float("nan"), float("inf")])
@@ -28,7 +28,7 @@ def test_shared_lifecycle_hooks_and_case_contract(monkeypatch):
 
     async def isolated(seconds, **kwargs):
         assert seconds == 3
-        assert kwargs["server_module"] == "presence_demo.acceptance_browser_reid"
+        assert kwargs["server_module"] == "presencekit.acceptance_browser_reid"
         assert kwargs["exercise"] is adapter._exercise
         assert kwargs["extra_fixture"].is_file()
         return [adapter._case("test", True, "contract")]

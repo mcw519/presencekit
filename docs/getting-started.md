@@ -12,7 +12,7 @@
 
 ```bash
 uv sync
-uv run presence-demo                      # http://127.0.0.1:8000
+uv run presencekit                      # http://127.0.0.1:8000
 ```
 
 Open the page, press **Start**, and allow camera and microphone. Stand in front of the camera: a box appears
@@ -25,7 +25,7 @@ execution provider). If the download fails, a simple Haar + colour-histogram fal
 starts.
 
 `uv sync` installs the SDK, the web demo and the test tools. Outside this repository, `pip install
-"presence-demo[web]"` installs the demo; plain `pip install presence-demo` is the SDK only (see
+"presencekit[web]"` installs the demo; plain `pip install presencekit` is the SDK only (see
 [SDK and ONNX Runtime](sdk.md)).
 
 ## Exposing it on a network
@@ -35,7 +35,7 @@ all require `?token=…`:
 
 ```bash
 export PRESENCE_TOKEN="$(python -c 'import secrets; print(secrets.token_urlsafe(16))')"
-uv run presence-demo --host 0.0.0.0 --port 8000
+uv run presencekit --host 0.0.0.0 --port 8000
 # open http://<host>:8000/?token=<your token>
 ```
 

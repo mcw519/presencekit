@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const source=fs.readFileSync(path.resolve(__dirname,'../../presence_demo/static/js/real-acceptance-recorder.js'),'utf8');
+const source=fs.readFileSync(path.resolve(__dirname,'../../presencekit/static/js/real-acceptance-recorder.js'),'utf8');
 class Socket {
  constructor(){this.readyState=1;this.listeners={message:new Set(),close:new Set()}}
  addEventListener(k,f){this.listeners[k].add(f)}removeEventListener(k,f){this.listeners[k].delete(f)}

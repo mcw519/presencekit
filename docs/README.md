@@ -2,7 +2,7 @@
 
 # Documentation
 
-presence-demo answers one question for a conversational device: **is the person (or group) I am talking to still here?**
+PresenceKit answers one question for a conversational device: **is the person (or group) I am talking to still here?**
 These pages explain how it works, how to run it and how to tune it. Start with *How it works* if you are new.
 
 ## Start here

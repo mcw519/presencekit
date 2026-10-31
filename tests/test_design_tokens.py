@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 from sources import ui_source
 
-from presence_demo import server
+from presencekit import server
 
 VENDOR = Path(server.STATIC) / "vendor" / "puresound"
 # unmodified upstream files at puresound 121bf623b491cb7f18805bec65099543ecc5323f (see vendor/puresound/README.md)

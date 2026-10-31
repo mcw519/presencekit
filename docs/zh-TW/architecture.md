@@ -2,7 +2,7 @@
 
 # 架構
 
-presence-demo 是一個 Python 套件：核心是純邏輯（沒有 I/O，可以注入時鐘做單元測試），外面包一層 FastAPI + WebSocket 網頁 demo。
+PresenceKit 是一個 Python 套件：核心是純邏輯（沒有 I/O，可以注入時鐘做單元測試），外面包一層 FastAPI + WebSocket 網頁 demo。
 瀏覽器負責擷取鏡頭和麥克風、繪製介面；所有分析都在伺服器記憶體中完成。
 
 ![架構：瀏覽器、web 傳輸、runtime，以及 identity、detectors、core 三層](../img/architecture.zh-TW.png)
@@ -10,7 +10,7 @@ presence-demo 是一個 Python 套件：核心是純邏輯（沒有 I/O，可以
 ## 程式結構
 
 ```
-presence_demo/
+presencekit/
   core/              純邏輯（只用 numpy、沒有 I/O）：在場判斷引擎
     types.py         型別化資料：Observation、VideoFrame、PresenceEvent、Step
     tracks.py        Detection、Track · geometry.py 框與 IoU · tracking.py 配對、Kalman、外觀

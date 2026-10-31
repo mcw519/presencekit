@@ -25,10 +25,10 @@ Review `profile.json`, `preflight.json`, `manual-results.json`, and `README.md`.
 - Bind the server to loopback:
 
   ```bash
-  uv run presence-demo --host 127.0.0.1 --port 8000
+  uv run presencekit --host 127.0.0.1 --port 8000
   ```
 
-  This is the documented `presence-demo` entry point and `server.main` arguments; the defaults are also `127.0.0.1:8000`. Do not bind to `0.0.0.0`. Check that the port is free first. If another port is needed, record the exact command and URL.
+  This is the documented `presencekit` entry point and `server.main` arguments; the defaults are also `127.0.0.1:8000`. Do not bind to `0.0.0.0`. Check that the port is free first. If another port is needed, record the exact command and URL.
 - Open `http://127.0.0.1:8000` in Chrome. Manually confirm the displayed app version matches the repository under test. The operator grants camera and microphone access only when pressing **Start**.
 - Prepare anonymous scene cards using only `A`, `B`, and `C`. Record action times and expected outcomes, not names, face descriptions, voice traits, or raw conversation/session/track IDs.
 - Do not record or export video, face crops, audio, transcripts, raw `/debug/events`, or messages containing identifiers. Evidence is limited to an anonymous case code, operator action times, pass/fail/not-run, approved numeric summaries, and error category.

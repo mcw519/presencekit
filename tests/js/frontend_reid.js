@@ -1,6 +1,6 @@
 // Re-ID display follows the current session and consent; no browser or devices.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const root=path.resolve(__dirname,'../..'),read=n=>fs.readFileSync(path.join(root,'presence_demo/static/js',n+'.js'),'utf8');
+const root=path.resolve(__dirname,'../..'),read=n=>fs.readFileSync(path.join(root,'presencekit/static/js',n+'.js'),'utf8');
 const elements=new Map();
 const element=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',hidden:true,textContent:'',dataset:{},classList:{add(){},remove(){}}});return elements.get(id)};
 const sandbox={console,Date,Number,URLSearchParams,performance:{now:()=>0},location:{search:'',protocol:'http:',host:'localhost'},

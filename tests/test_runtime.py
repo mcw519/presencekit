@@ -10,12 +10,12 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
-from presence_demo import diag
-from presence_demo.core.tracks import Detection
-from presence_demo.runtime import CLIENT_MESSAGE_TYPES, AppContext, FrameProcessor, PresenceRuntime
-from presence_demo.runtime import session as rsession
-from presence_demo.runtime.continuity import PageRegistry
-from presence_demo.runtime.protocol import VIDEO_HEADER, VIDEO_TAG
+from presencekit import diag
+from presencekit.core.tracks import Detection
+from presencekit.runtime import CLIENT_MESSAGE_TYPES, AppContext, FrameProcessor, PresenceRuntime
+from presencekit.runtime import session as rsession
+from presencekit.runtime.continuity import PageRegistry
+from presencekit.runtime.protocol import VIDEO_HEADER, VIDEO_TAG
 
 
 class FakeOutbox:
@@ -104,12 +104,12 @@ def test_client_message_types_cover_every_handled_kind():
 
 
 def test_v012_module_paths_reexport_the_same_objects():
-    from presence_demo import optimizer, runtime
-    from presence_demo.runtime import alignment, continuity, protocol, resources
-    from presence_demo.web import alignment as w_alignment
-    from presence_demo.web import continuity as w_continuity
-    from presence_demo.web import protocol as w_protocol
-    from presence_demo.web import runtime as w_runtime
+    from presencekit import optimizer, runtime
+    from presencekit.runtime import alignment, continuity, protocol, resources
+    from presencekit.web import alignment as w_alignment
+    from presencekit.web import continuity as w_continuity
+    from presencekit.web import protocol as w_protocol
+    from presencekit.web import runtime as w_runtime
 
     assert runtime.FrameProcessor is optimizer.FrameProcessor is FrameProcessor
     assert w_protocol.binary_frame is protocol.binary_frame and w_protocol.VIDEO_TAG == protocol.VIDEO_TAG
@@ -121,7 +121,7 @@ def test_v012_module_paths_reexport_the_same_objects():
 
 
 def test_default_context_references_the_process_singletons():
-    from presence_demo.runtime import continuity, resources
+    from presencekit.runtime import continuity, resources
 
     ctx = AppContext.default()
     assert ctx.pages is continuity.PAGES and ctx.vision_lock is resources.VISION_LOCK

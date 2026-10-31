@@ -15,7 +15,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-STATIC = ROOT / "presence_demo" / "static"
+STATIC = ROOT / "presencekit" / "static"
 BOOT = """
 <script>
 window.benchErrors=[];
@@ -50,9 +50,9 @@ addEventListener('message',async e=>{
 
 
 def fixtures():
-    from presence_demo.audio import AudioStream
-    from presence_demo.stats import ConnStats, build_stats
-    from presence_demo.tracker import Config, PresenceTracker
+    from presencekit.audio import AudioStream
+    from presencekit.stats import ConnStats, build_stats
+    from presencekit.tracker import Config, PresenceTracker
 
     class Iso:
         base_mix, delay, vad_heads, resets = 0.9, 480, [], 0
@@ -119,12 +119,15 @@ def main():
                         continue
                     data = old_file.read_bytes()
                 elif version == "before":
-                    source = subprocess.run(
-                        ["git", "show", f"{args.before_ref}:presence_demo/static/{relative}"],
-                        cwd=ROOT,
-                        capture_output=True,
-                        check=False,
-                    )
+                    for package in ("presencekit", "presence_demo"):
+                        source = subprocess.run(
+                            ["git", "show", f"{args.before_ref}:{package}/static/{relative}"],
+                            cwd=ROOT,
+                            capture_output=True,
+                            check=False,
+                        )
+                        if source.returncode == 0:
+                            break
                     if source.returncode:
                         continue
                     data = source.stdout

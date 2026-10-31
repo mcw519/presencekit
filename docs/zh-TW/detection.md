@@ -3,7 +3,7 @@
 # 偵測（感知層）
 
 感知層把一張 JPEG 畫面變成一串**偵測結果**：臉部框、信心值、128 個數字的臉部特徵（embedding），以及選用的身體骨架、
-衣服顏色直方圖和距離。全部在記憶體中完成（`presence_demo/vision.py`、`body.py`、`appearance.py`、`optimizer.py`）。
+衣服顏色直方圖和距離。全部在記憶體中完成（`presencekit/vision.py`、`body.py`、`appearance.py`、`optimizer.py`）。
 
 ```mermaid
 flowchart LR

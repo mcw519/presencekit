@@ -44,4 +44,4 @@ When everyone leaves the region, the conversation can end.
 
 12
 00:00:41,767 --> 00:00:48,301
-Presence demo uses the camera and voice isolation, so your voice agent hears only the people inside the region.
+PresenceKit uses the camera and voice isolation, so your voice agent hears only the people inside the region.

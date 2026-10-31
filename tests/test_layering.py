@@ -1,10 +1,10 @@
 """Dependency direction of the layers (static import check, no imports executed).
 
 core      -> numpy + pure-python helpers only (no OpenCV, no web framework, no runtime/web modules)
-inference -> numpy + onnxruntime only (no OpenCV, no other presence_demo layer)
+inference -> numpy + onnxruntime only (no OpenCV, no other presencekit layer)
 detectors -> may use OpenCV and inference, never the web framework
 identity  -> never the web framework, never the web/runtime layers
-runtime   -> never the web framework (FastAPI/Starlette/uvicorn), never presence_demo.web / server
+runtime   -> never the web framework (FastAPI/Starlette/uvicorn), never presencekit.web / server
 """
 
 from __future__ import annotations
@@ -13,14 +13,14 @@ import ast
 import sys
 from pathlib import Path
 
-from presence_demo.core import Observation, PresenceEvent, Step, VideoFrame
+from presencekit.core import Observation, PresenceEvent, Step, VideoFrame
 
-PKG = Path(__file__).resolve().parent.parent / "presence_demo"
+PKG = Path(__file__).resolve().parent.parent / "presencekit"
 WEB_FRAMEWORK = {"fastapi", "starlette", "uvicorn"}
 
 
 def _imports(layer: str) -> dict[str, set[str]]:
-    """Absolute module names imported by every file of ``presence_demo/<layer>`` (relative imports resolved)."""
+    """Absolute module names imported by every file of ``presencekit/<layer>`` (relative imports resolved)."""
     out = {}
     for path in sorted((PKG / layer).rglob("*.py")):
         rel = path.relative_to(PKG.parent).with_suffix("")
@@ -58,20 +58,20 @@ def _violations(layer: str, banned_roots: set[str], banned_prefixes: tuple[str, 
 def test_core_imports_only_numpy_and_pure_helpers():
     banned = {"cv2", "ai_edge_litert", "onnxruntime", "psutil", *WEB_FRAMEWORK}
     prefixes = (
-        "presence_demo.inference",
-        "presence_demo.sdk",
-        "presence_demo.web",
-        "presence_demo.runtime",
-        "presence_demo.detectors",
-        "presence_demo.identity",
-        "presence_demo.vision",
-        "presence_demo.optimizer",
-        "presence_demo.reid",
-        "presence_demo.audio",
-        "presence_demo.asr",
-        "presence_demo.server",
-        "presence_demo.appearance",
-        "presence_demo.embed_backends",
+        "presencekit.inference",
+        "presencekit.sdk",
+        "presencekit.web",
+        "presencekit.runtime",
+        "presencekit.detectors",
+        "presencekit.identity",
+        "presencekit.vision",
+        "presencekit.optimizer",
+        "presencekit.reid",
+        "presencekit.audio",
+        "presencekit.asr",
+        "presencekit.server",
+        "presencekit.appearance",
+        "presencekit.embed_backends",
     )
     assert not _violations("core", banned, prefixes)
 
@@ -94,7 +94,7 @@ def test_inference_depends_on_numpy_and_onnxruntime_only():
             assert (
                 root in {"numpy", "onnxruntime", "__future__"}
                 or root in sys.stdlib_module_names
-                or (n.startswith("presence_demo.inference"))
+                or (n.startswith("presencekit.inference"))
             ), f"{f}: {n}"
 
 
@@ -110,17 +110,17 @@ def test_sdk_never_imports_the_web_framework_or_the_web_runtime_layers():
 
 
 def test_detectors_never_import_the_web_framework_or_upper_layers():
-    prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server", "presence_demo.identity")
+    prefixes = ("presencekit.web", "presencekit.runtime", "presencekit.server", "presencekit.identity")
     assert not _violations("detectors", WEB_FRAMEWORK, prefixes)
 
 
 def test_identity_never_imports_the_web_framework_or_the_web_runtime_layers():
-    prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server")
+    prefixes = ("presencekit.web", "presencekit.runtime", "presencekit.server")
     assert not _violations("identity", WEB_FRAMEWORK, prefixes)
 
 
 def test_runtime_never_imports_the_web_framework_or_the_web_layer():
-    prefixes = ("presence_demo.web", "presence_demo.server")
+    prefixes = ("presencekit.web", "presencekit.server")
     assert not _violations("runtime", WEB_FRAMEWORK, prefixes)
 
 
@@ -129,10 +129,10 @@ def test_lower_layers_load_without_the_web_framework():
     import sys
 
     code = (
-        "import sys; import presence_demo.core, presence_demo.inference, presence_demo.detectors, "
-        "presence_demo.identity, presence_demo.sdk, presence_demo.runtime; "
+        "import sys; import presencekit.core, presencekit.inference, presencekit.detectors, "
+        "presencekit.identity, presencekit.sdk, presencekit.runtime; "
         "bad = sorted(m for m in sys.modules if m.split('.')[0] in "
-        "('fastapi', 'starlette', 'uvicorn') or m.startswith(('presence_demo.web', 'presence_demo.server'))); "
+        "('fastapi', 'starlette', 'uvicorn') or m.startswith(('presencekit.web', 'presencekit.server'))); "
         "print(','.join(bad))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()

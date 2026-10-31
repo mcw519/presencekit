@@ -5,7 +5,7 @@ from dataclasses import fields
 
 from sources import STATIC, ui_source
 
-from presence_demo.tracker import Config
+from presencekit.tracker import Config
 
 HTML = ui_source()
 

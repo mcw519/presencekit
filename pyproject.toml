@@ -1,13 +1,13 @@
 [project]
-name = "presence-demo"
+name = "presencekit"
 version = "0.14.0"
 description = "Detect when conversing users leave: audio VAD + face tracking fusion on ONNX Runtime, as an embeddable SDK with a live web demo"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
-authors = [{ name = "presence-demo contributors" }]
-# The SDK (presence_demo.sdk, .inference, .detectors, .core): every neural model runs on ONNX Runtime.
+authors = [{ name = "presencekit contributors" }]
+# The SDK (presencekit.sdk, .inference, .detectors, .core): every neural model runs on ONNX Runtime.
 # For a GPU / NPU build, replace onnxruntime with the matching package (onnxruntime-gpu, onnxruntime-qnn, ...).
 dependencies = [
     "numpy>=1.24",
@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# The web demo (presence-demo command): FastAPI + WebSocket server and the browser UI.
+# The web demo (presencekit command): FastAPI + WebSocket server and the browser UI.
 web = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
 # LiteRT: MoveNet TFLite fallback when the ONNX export is absent, and the SFace TFLite / NPU delegate backend.
 litert = ["ai-edge-litert>=2.3.0"]
@@ -25,17 +25,17 @@ litert = ["ai-edge-litert>=2.3.0"]
 puresound = ["puresound-streaming[cpu]; python_version >= '3.12'"]
 
 [project.scripts]
-presence-demo = "presence_demo.server:main"
+presencekit = "presencekit.server:main"
 
 [dependency-groups]
-dev = ["presence-demo[web,litert]", "pytest>=7", "httpx>=0.27", "ruff>=0.6", "websockets>=12", "onnx>=1.16"]
+dev = ["presencekit[web,litert]", "pytest>=7", "httpx>=0.27", "ruff>=0.6", "websockets>=12", "onnx>=1.16"]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["presence_demo"]
+packages = ["presencekit"]
 
 [tool.ruff]
 line-length = 120

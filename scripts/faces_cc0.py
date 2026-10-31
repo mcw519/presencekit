@@ -22,7 +22,7 @@ API = (
 
 
 def _get(url: str, timeout: float = 30) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "presence-demo-eval/1.0"})
+    req = urllib.request.Request(url, headers={"User-Agent": "presencekit-eval/1.0"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.read()
 

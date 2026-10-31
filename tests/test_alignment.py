@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
-from presence_demo.web.alignment import VisionTiming, client_timestamp, decision_timing
+from presencekit.web.alignment import VisionTiming, client_timestamp, decision_timing
 
 
 @pytest.mark.parametrize("value", [None, True, False, -1, math.inf, -math.inf, math.nan, "100"])
@@ -59,8 +59,8 @@ def test_no_vision_is_stale_and_json_serializable():
 
 
 def test_audio_metadata_retains_decision_frame_when_new_vision_finishes(monkeypatch):
-    from presence_demo.server import app
-    from presence_demo.web import session
+    from presencekit.server import app
+    from presencekit.web import session
 
     started, release = threading.Event(), threading.Event()
     seen = []

@@ -4,7 +4,7 @@
 import numpy as np
 import pytest
 
-from presence_demo.tracker import Config, Detection, PresenceTracker
+from presencekit.tracker import Config, Detection, PresenceTracker
 
 E = {k: v / np.linalg.norm(v) for k, v in zip("AB", np.random.default_rng(0).normal(size=(2, 128)), strict=True)}
 BOX = {"A": (0.4, 0.3, 0.55, 0.55), "B": (0.3, 0.3, 0.45, 0.55)}

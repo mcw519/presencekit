@@ -6,9 +6,9 @@ import cv2
 import numpy as np
 import pytest
 
-from presence_demo import vision
-from presence_demo.embed_backends import OpenCVSFace, TFLiteSFace, align_crop, similarity_transform
-from presence_demo.tracker import Config
+from presencekit import vision
+from presencekit.embed_backends import OpenCVSFace, TFLiteSFace, align_crop, similarity_transform
+from presencekit.tracker import Config
 
 FACE = Path(__file__).parent / "data" / "face.jpg"
 M = vision.MODEL_DIR

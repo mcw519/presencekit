@@ -2,7 +2,7 @@
 
 # Configuration
 
-Server-side parameters live in `presence_demo/config.py` (`Config`), with their allowed ranges in `RANGES`. Values
+Server-side parameters live in `presencekit/config.py` (`Config`), with their allowed ranges in `RANGES`. Values
 sent from the page are validated and clamped, applied **to that connection only**, and any warnings are sent back.
 `GET /api/config` returns defaults and ranges.
 
@@ -25,7 +25,7 @@ you want the new ones.
 
 `Config` keeps its flat keys: they remain the storage, the wire format (`/api/config`, WebSocket `config`
 messages, presets, exported JSON) and the reference below, and they work unchanged in v0.13. In addition every
-key belongs to exactly one group in `presence_demo.config.GROUPS` (`core`, `tracker`, `presence`, `intent`,
+key belongs to exactly one group in `presencekit.config.GROUPS` (`core`, `tracker`, `presence`, `intent`,
 `vision`, `pose`, `perf`, `audio`, `asr`, `reid`). `cfg.group("reid").reid_threshold` is the same value as
 `cfg.reid_threshold`; `cfg.group(name).update({...})` applies the normal validation to that group only, and
 `cfg.as_groups()` returns a nested copy. Server-process settings stay environment variables.
@@ -71,7 +71,7 @@ it and list only the differences. *Low power* changes only performance settings,
 | Variable | Meaning |
 |---|---|
 | `PRESENCE_TOKEN` | When set, the page, API and WebSocket require `?token=` |
-| `PRESENCE_MODEL_DIR` | Where models are stored (default: `models/` of a source checkout, else `~/.cache/presence-demo/models`) |
+| `PRESENCE_MODEL_DIR` | Where models are stored (default: `models/` of a source checkout, else `~/.cache/presencekit/models`) |
 | `PRESENCE_ORT_PROVIDERS` | ONNX Runtime execution providers, e.g. `coreml,cpu` or `auto` (default `cpu`); see [SDK and ONNX Runtime](sdk.md) |
 | `PRESENCE_ORT_THREADS`, `PRESENCE_ORT_GRAPH_OPT` | Threads per model (0 = ORT decides) and graph optimisation level (`disable`/`basic`/`extended`/`all`) |
 | `PRESENCE_FACE_EMBEDDER=hist` | Do not load SFace; use the HSV histogram fallback |

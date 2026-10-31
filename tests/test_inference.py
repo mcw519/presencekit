@@ -11,10 +11,10 @@ import numpy as np
 import onnxruntime as ort
 import pytest
 
-from presence_demo import inference, vision
-from presence_demo.detectors import face as face_mod
-from presence_demo.inference import ModelSpec, ModelStore, OrtOptions, load_model, strip_initializer_inputs
-from presence_demo.inference import providers as prov
+from presencekit import inference, vision
+from presencekit.detectors import face as face_mod
+from presencekit.inference import ModelSpec, ModelStore, OrtOptions, load_model, strip_initializer_inputs
+from presencekit.inference import providers as prov
 
 FACE = Path(__file__).parent / "data" / "face.jpg"
 STORE = ModelStore(allow_download=False)
@@ -176,6 +176,22 @@ def test_store_root_follows_presence_model_dir(tmp_path, monkeypatch):
     assert inference.default_root() == tmp_path and inference.default_store().root == tmp_path
 
 
+def test_store_cache_reuses_legacy_models_after_rename(tmp_path, monkeypatch):
+    from presencekit.inference import models
+
+    monkeypatch.delenv("PRESENCE_MODEL_DIR", raising=False)
+    monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path / "cache"))
+    # Simulate an installed package, outside a source checkout.
+    monkeypatch.setattr(models, "__file__", str(tmp_path / "site-packages/presencekit/inference/models.py"))
+    root = tmp_path / "cache/presencekit/models"
+    legacy = tmp_path / "cache/presence-demo/models"
+    assert models.default_root() == root
+    legacy.mkdir(parents=True)
+    assert models.default_root() == legacy
+    root.mkdir(parents=True)
+    assert models.default_root() == root
+
+
 # --- parity with the implementations ORT replaces --------------------------------------------------------------------
 
 
@@ -227,7 +243,7 @@ def test_ort_yunet_matches_opencv_facedetectoryn():
 
 
 def test_ort_sface_matches_opencv_featurizer():
-    from presence_demo.embed_backends import OpenCVSFace, OrtSFace
+    from presencekit.embed_backends import OpenCVSFace, OrtSFace
 
     img = cv2.imread(str(FACE))
     raw = vision.YuNetDetector(need("yunet-opencv")).detect(img)[0][0]

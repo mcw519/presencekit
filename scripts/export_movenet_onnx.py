@@ -2,7 +2,7 @@
 
 Produces in the model store (models/ or $PRESENCE_MODEL_DIR):
   * movenet_multipose_lightning.onnx – same network and weights, opset 17, dynamic input [1, H, W, 3] uint8 RGB
-    (H, W multiples of 32), output [1, 6, 56]. presence_demo uses it instead of LiteRT when it is present.
+    (H, W multiples of 32), output [1, 6, 56]. presencekit uses it instead of LiteRT when it is present.
 
 Toolchain (permissive licences; see docs/licenses.md): tf2onnx (Apache-2.0), TensorFlow (Apache-2.0), onnx (Apache-2.0),
 onnxruntime (MIT), ai-edge-litert (Apache-2.0). TensorFlow is heavy and not a runtime dependency, so use a separate
@@ -29,7 +29,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
-from presence_demo.inference import CATALOG, ModelStore  # noqa: E402
+from presencekit.inference import CATALOG, ModelStore  # noqa: E402
 
 SHAPES = [(192, 256), (256, 192), (256, 256), (160, 256), (224, 256)]
 
@@ -54,7 +54,7 @@ def inputs() -> list[np.ndarray]:
     try:
         import cv2
 
-        from presence_demo.detectors.pose import letterbox
+        from presencekit.detectors.pose import letterbox
 
         img = cv2.imread(str(face))
         xs += [letterbox(img, 256)[0][None], letterbox(cv2.resize(img, (640, 480)), 256)[0][None]]

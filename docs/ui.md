@@ -1,12 +1,12 @@
 ---
 version: alpha
-name: presence-demo-console
+name: presencekit-console
 description: "Presence-demo's console is a PureSound playground screen: same shell, same components, same tokens. This file records how presence maps its content onto those components; it does not invent a second design system."
 source:
   repository: https://github.com/mcw519/puresound
   path: puresound/web/static
   revision: 121bf623b491cb7f18805bec65099543ecc5323f
-  vendored: presence_demo/static/vendor/puresound
+  vendored: presencekit/static/vendor/puresound
   license: Apache-2.0 (CSS), SIL OFL 1.1 (IBM Plex)
 ---
 

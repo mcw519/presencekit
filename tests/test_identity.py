@@ -1,4 +1,4 @@
-"""v0.13 identity layer: pure decision, call guard, and v0.12 compatibility of presence_demo.reid."""
+"""v0.13 identity layer: pure decision, call guard, and v0.12 compatibility of presencekit.reid."""
 
 from __future__ import annotations
 
@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from presence_demo import identity, reid
-from presence_demo.identity import CallGuard, Decision, MatchTally, Ref, decide
+from presencekit import identity, reid
+from presencekit.identity import CallGuard, Decision, MatchTally, Ref, decide
 
 
 def _ref(cid, participant="p"):
@@ -79,7 +79,7 @@ def test_reid_module_reexports_the_identity_layer():
 
 
 def test_driver_keeps_v012_counter_attributes():
-    from presence_demo.tracker import Config
+    from presencekit.tracker import Config
 
     d = identity.ContinuationDriver(Config(), client=reid.CloudReid())
     d.calls, d.tokens = 3, 9

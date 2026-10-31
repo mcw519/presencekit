@@ -10,7 +10,7 @@
 ```bash
 uv sync                          # 執行期 + 開發相依套件（pytest、httpx、ruff、websockets）
 uv sync --extra puresound        # 選用：PureSound 音訊管線（Python ≥ 3.12）
-uv run presence-demo --port 8000
+uv run presencekit --port 8000
 ```
 
 ## 開 pull request 之前
@@ -39,12 +39,12 @@ uv run pytest -q
 - Python ≥ 3.10，用 ruff 格式化與檢查（行寬 120）。公開函式要有型別標註和 docstring。
 - 核心（`tracker.py`、`kalman.py`、`presence_model.py`、`intent.py` …）維持純邏輯：沒有 I/O、可注入時鐘、可單元測試。
 - 網頁介面用一般 script，沒有 build 步驟，也不使用第三方 JS。使用 PureSound 元件 class；不要修改
-  `presence_demo/static/vendor/puresound/`，也不要在 `app.css` 重新定義上游元件或 token（見 [docs/zh-TW/ui.md](docs/zh-TW/ui.md)）。
+  `presencekit/static/vendor/puresound/`，也不要在 `app.css` 重新定義上游元件或 token（見 [docs/zh-TW/ui.md](docs/zh-TW/ui.md)）。
 
 ## 新增參數
 
-1. 在 `presence_demo/config.py` 的 `Config` 加欄位、在 `RANGES` 加範圍（`test_ranges_cover_all_fields` 會檢查）。
-2. 在 `presence_demo/static/js/settings.js` 的 `DEF` 加預設值，並把鍵加進 `MODULES` 的某個模組；`META` 只放結構（範圍、間距、選項）。
+1. 在 `presencekit/config.py` 的 `Config` 加欄位、在 `RANGES` 加範圍（`test_ranges_cover_all_fields` 會檢查）。
+2. 在 `presencekit/static/js/settings.js` 的 `DEF` 加預設值，並把鍵加進 `MODULES` 的某個模組；`META` 只放結構（範圍、間距、選項）。
 3. 在 `static/i18n/en.js` **和** `static/i18n/zh-TW.js` 加上名稱 `s.<key>`、說明 `s.<key>.h` 和選項名稱 `s.<key>.o.<value>`
    （`test_i18n.py` 會檢查）。
 4. 重新產生參數表：`uv run python scripts/gen_config_docs.py`。

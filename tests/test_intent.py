@@ -5,9 +5,9 @@ import math
 import numpy as np
 import pytest
 
-from presence_demo import intent as im
-from presence_demo.body import Body
-from presence_demo.tracker import Config, Detection, PresenceTracker, State
+from presencekit import intent as im
+from presencekit.body import Body
+from presencekit.tracker import Config, Detection, PresenceTracker, State
 
 
 class Clock:

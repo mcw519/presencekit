@@ -8,8 +8,8 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from presence_demo import asr
-from presence_demo.tracker import Config
+from presencekit import asr
+from presencekit.tracker import Config
 
 KEY = "test-key-0123456789abcdef"
 
@@ -94,7 +94,7 @@ def test_stream_against_mock_server(caplog):
 def test_key_endpoints_never_echo_key(caplog):
     from fastapi.testclient import TestClient
 
-    from presence_demo import server
+    from presencekit import server
 
     caplog.set_level(logging.DEBUG)
     c = TestClient(server.app)

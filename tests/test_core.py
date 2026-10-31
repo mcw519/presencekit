@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 
-from presence_demo import tracker as legacy
-from presence_demo.core import Detection, Observation, PresenceCore, PresenceEvent, PresenceTracker, Step
-from presence_demo.tracker import Config
+from presencekit import tracker as legacy
+from presencekit.core import Detection, Observation, PresenceCore, PresenceEvent, PresenceTracker, Step
+from presencekit.tracker import Config
 
 
 def _face(x, seed=0):

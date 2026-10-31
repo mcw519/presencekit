@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from fastapi.testclient import TestClient
 
-from presence_demo import diag, server
+from presencekit import diag, server
 
 
 def jpeg():

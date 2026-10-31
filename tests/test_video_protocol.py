@@ -5,7 +5,7 @@ import struct
 
 import pytest
 
-from presence_demo.web.protocol import binary_frame, legacy_frame
+from presencekit.web.protocol import binary_frame, legacy_frame
 
 JPEG = b"\xff\xd8jpeg\xff\xd9"
 

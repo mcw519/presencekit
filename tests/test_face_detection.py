@@ -9,15 +9,15 @@ import numpy as np
 import pytest
 from sources import ui_source
 
-from presence_demo.optimizer import FrameProcessor
-from presence_demo.tracker import Config
+from presencekit.optimizer import FrameProcessor
+from presencekit.tracker import Config
 
 FACE = Path(__file__).parent / "data" / "face.jpg"
 
 
 @pytest.fixture(scope="module")
 def pipe():
-    from presence_demo.vision import VisionPipeline
+    from presencekit.vision import VisionPipeline
 
     try:
         return VisionPipeline(allow_download=False)
@@ -75,7 +75,7 @@ def test_motion_gate_never_reuses_no_face(pipe):
 
 def test_shared_detector_is_serialized_across_connections(pipe):
     # two connections share one YuNet; unsynchronized use corrupted memory (crash / wrong results)
-    from presence_demo.server import _vision_job
+    from presencekit.server import _vision_job
 
     a = cv2.imencode(".jpg", frame_with_face(200, 0.5))[1].tobytes()
     b = cv2.imencode(".jpg", cv2.resize(frame_with_face(200, 0.5), (400, 300)))[1].tobytes()
@@ -98,7 +98,7 @@ def test_shared_detector_is_serialized_across_connections(pipe):
 
 
 def test_ws_handshake_log_redacts_token():
-    from presence_demo.server import _RedactToken
+    from presencekit.server import _RedactToken
 
     rec = logging.LogRecord(
         "uvicorn.error", 20, "", 0, '%s - "WebSocket %s" [accepted]', ("1.2.3.4:0", "/ws?token=SECRET123"), None

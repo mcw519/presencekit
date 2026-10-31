@@ -1,10 +1,10 @@
 [English](README.md) · **繁體中文**
 
-# presence-demo
+# PresenceKit
 
 **知道正在跟你說話的人什麼時候離開了。**
 
-presence-demo 結合鏡頭和麥克風，讓對話裝置（機器人、服務機台、有鏡頭的智慧音箱）知道正在對話的人（或這群人）還在不在。
+PresenceKit 結合鏡頭和麥克風，讓對話裝置（機器人、服務機台、有鏡頭的智慧音箱）知道正在對話的人（或這群人）還在不在。
 它是一條小而可解釋的管線（人臉與身體偵測、追蹤、互動意圖分數、機率式在場模型、五個狀態的狀態機），
 加上一個即時顯示每一步的網頁 demo。
 
@@ -24,7 +24,7 @@ presence-demo 結合鏡頭和麥克風，讓對話裝置（機器人、服務機
 ## 為什麼
 
 「20 秒沒說話」不是結束對話的好方法。人會停頓、看手機，或安靜聽朋友說話；背景的電視卻從不停止說話。
-presence-demo 看的是**誰真的在、誰真的在互動**，只在有幫助時才用聲音，並且寫下每個決定的原因。
+PresenceKit 看的是**誰真的在、誰真的在互動**，只在有幫助時才用聲音，並且寫下每個決定的原因。
 
 ## 功能
 
@@ -37,7 +37,7 @@ presence-demo 看的是**誰真的在、誰真的在互動**，只在有幫助�
 - **知道聲音從哪裡來的音訊（選用）**：PureSound 人聲分離，再用影像交叉確認，電視或遠處的人聲不會被當成使用者。
 - **姿勢與距離（選用）**：MoveNet 骨架、朝向和可校正的距離估計。
 - **小裝置也跑得動**：移動閘門、embedding 節流、自適應 fps、ROI 裁切，CPU 約省 70%；支援 TFLite / NPU embedding 後端。
-- **跑在 ONNX Runtime 上的可嵌入 SDK**：`presence_demo.sdk.PresenceEngine`（畫面與 VAD 或音訊進，狀態與事件出），不需要
+- **跑在 ONNX Runtime 上的可嵌入 SDK**：`presencekit.sdk.PresenceEngine`（畫面與 VAD 或音訊進，狀態與事件出），不需要
   網頁框架；所有模型都跑在 ONNX Runtime，可選擇執行提供者（CPU、CUDA、DirectML、CoreML、QNN、OpenVINO…）。
 - **預設保護隱私**：畫面只在記憶體中處理，從不保存；臉部特徵在 session 結束時清除。雲端語音辨識和跨 session
   使用者判斷都是選用，預設關閉。
@@ -51,7 +51,7 @@ presence-demo 看的是**誰真的在、誰真的在互動**，只在有幫助�
 git clone https://github.com/mcw519/presence-demo.git
 cd presence-demo
 uv sync
-uv run presence-demo            # 開啟 http://127.0.0.1:8000，按「開始」
+uv run presencekit            # 開啟 http://127.0.0.1:8000，按「開始」
 ```
 
 瀏覽器只在 `localhost` 或 HTTPS 下允許使用鏡頭。開放給其他人使用前，請先設定 `PRESENCE_TOKEN`
@@ -64,10 +64,10 @@ uv sync --extra puresound
 uv run python scripts/fetch_puresound_model.py --clone
 ```
 
-在自己的程式裡使用（不需要網頁伺服器；`pip install presence-demo` 就夠了）：
+在自己的程式裡使用（不需要網頁伺服器；`pip install presencekit` 就夠了）：
 
 ```python
-from presence_demo.sdk import PresenceEngine
+from presencekit.sdk import PresenceEngine
 
 engine = PresenceEngine()
 step = engine.process_frame(bgr_frame, speaking=vad_flag)
@@ -106,8 +106,8 @@ flowchart LR
 ## 專案結構
 
 ```
-presence_demo/         核心邏輯、ONNX Runtime 推論層、SDK 介面（sdk.py）、FastAPI + WebSocket 伺服器
-presence_demo/static/  網頁介面（HTML、JS、字串表、vendored PureSound CSS）
+presencekit/         核心邏輯、ONNX Runtime 推論層、SDK 介面（sdk.py）、FastAPI + WebSocket 伺服器
+presencekit/static/  網頁介面（HTML、JS、字串表、vendored PureSound CSS）
 scripts/               基準測試、評估、模型匯出、圖片與文件產生器
 tests/                 單元、情境、WebSocket、隱私、介面和 i18n 測試
 docs/                  文件（英文），docs/zh-TW/（繁體中文）
