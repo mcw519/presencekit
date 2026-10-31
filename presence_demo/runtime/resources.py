@@ -9,9 +9,8 @@ import threading
 import time
 
 from .. import diag
-from ..body import calibration_factor
+from ..body import calibrate  # noqa: F401  (re-exported; moved to presence_demo.body in v0.14)
 from ..optimizer import FrameProcessor
-from ..tracker import PresenceTracker
 from ..vision import VisionPipeline, decode_jpeg, load_pose_detector
 
 TOKEN = os.environ.get("PRESENCE_TOKEN", "")  # empty = no auth (local use)
@@ -19,10 +18,16 @@ VISION_LOCK_TIMEOUT = float(os.environ.get("PRESENCE_VISION_LOCK_TIMEOUT", "10")
 _pipeline: VisionPipeline | None = None
 _pose_cache: dict = {}
 _PIPE_LOCK = threading.Lock()
+_POSE_LOCK = threading.Lock()
 
 
 def pose_detector():
-    """Load the pose detector once per process (downloads MoveNet MultiPose Lightning on first use)."""
+    """Load the pose detector once per process (MoveNet on ONNX Runtime, or LiteRT with a first-use download)."""
+    with _POSE_LOCK:
+        return _load_pose()
+
+
+def _load_pose():
     if "det" not in _pose_cache:
         t = time.perf_counter()
         try:
@@ -40,25 +45,10 @@ def pose_detector():
     return _pose_cache["det"]
 
 
-def calibrate(tr: PresenceTracker, meters) -> list[str]:
-    """Set distance_calib so the closest visible person's raw distance maps to ``meters``."""
-    try:
-        known = float(meters)
-    except (TypeError, ValueError):
-        return ["calibration: invalid distance"]
-    cands = [t for t in tr.tracks.values() if t.visible and t.dist_raw]
-    if not cands or known <= 0:
-        return ["calibration: no visible person with a distance estimate"]
-    t = min(cands, key=lambda x: x.dist_raw)
-    warns = tr.cfg.update({"distance_calib": calibration_factor(t.dist_raw, known)})
-    for x in tr.tracks.values():
-        x.distance = None  # restart EMA with the new factor
-    return warns + [f"calibrated: factor {tr.cfg.distance_calib:.3f} (track #{t.id})"]
-
-
-# One shared VisionPipeline (OpenCV DNN models) serves every WebSocket connection. cv2.FaceDetectorYN keeps its
-# input size as mutable state and is not thread-safe: two connections detecting at once corrupted results (and
-# could crash the process). All vision inference is therefore serialized through this lock.
+# One shared VisionPipeline serves every WebSocket connection. The ONNX Runtime detectors are stateless, but the
+# OpenCV DNN / LiteRT fallbacks keep mutable input-size state (two connections detecting at once corrupted results
+# and could crash the process), the SFace backend switch mutates the shared pipeline, and serializing also keeps
+# connections from oversubscribing the CPU. All vision inference therefore runs under this lock.
 VISION_LOCK = threading.Lock()
 # Audio isolation gets its own single worker thread so it never waits behind vision jobs in the default pool.
 AUDIO_POOL = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="audio")
@@ -72,6 +62,7 @@ def _vision_job(proc: FrameProcessor, data: bytes, cfg, stable: bool, conn: str 
     img, dec_ms = decode_jpeg(data)  # in memory only
     if img is None:
         return None
+    proc.prepare(cfg)  # model loads / first-use downloads happen outside the shared lock
     t0 = time.perf_counter()
     if not VISION_LOCK.acquire(timeout=VISION_LOCK_TIMEOUT):
         diag.event("vision_lock_timeout", "error", conn, waited_s=VISION_LOCK_TIMEOUT)

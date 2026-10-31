@@ -186,13 +186,16 @@ def backends_table(frames: int) -> None:
 
 def embed_micro(n: int = 200) -> None:
     """Model-only latency of each embedding model on an aligned 112x112 crop (no fallback logic)."""
-    from presence_demo.embed_backends import OpenCVSFace, TFLiteSFace
+    from presence_demo.embed_backends import OpenCVSFace, OrtSFace, TFLiteSFace
     from presence_demo.vision import MODEL_DIR, SFACE, SFACE_INT8, SFACE_TFLITE
 
     img = cv2.imread(str(FACE))
     crop = cv2.resize(img, (112, 112))
-    models = [("fp32 ONNX · OpenCV DNN", lambda: OpenCVSFace(MODEL_DIR / SFACE[0]))]
-    models.append(("int8 ONNX · OpenCV DNN", lambda: OpenCVSFace(MODEL_DIR / SFACE_INT8[0], "int8")))
+    models = [("fp32 ONNX · ONNX Runtime", lambda: OrtSFace(MODEL_DIR / SFACE[0]))]
+    models.append(("fp32 ONNX · OpenCV DNN", lambda: OpenCVSFace(MODEL_DIR / SFACE[0])))
+    if (MODEL_DIR / SFACE_INT8[0]).exists():
+        models.append(("int8 ONNX · ONNX Runtime", lambda: OrtSFace(MODEL_DIR / SFACE_INT8[0], "int8")))
+        models.append(("int8 ONNX · OpenCV DNN", lambda: OpenCVSFace(MODEL_DIR / SFACE_INT8[0], "int8")))
     for prec in ("int8", "fp16"):
         for th in (4, 1):
             p = MODEL_DIR / SFACE_TFLITE[prec]

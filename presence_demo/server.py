@@ -11,9 +11,12 @@ import secrets
 from dataclasses import asdict
 from pathlib import Path
 
-from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
+try:
+    from fastapi import FastAPI, Request
+    from fastapi.responses import FileResponse, HTMLResponse, PlainTextResponse
+    from fastapi.staticfiles import StaticFiles
+except ImportError as e:  # the SDK installs without the web stack
+    raise SystemExit("the web demo needs the web extra: pip install 'presence-demo[web]' (or uv sync)") from e
 
 from . import asr as asrmod
 from . import diag

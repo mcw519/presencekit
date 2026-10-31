@@ -29,7 +29,9 @@ class Config:
     cos_match: float = 0.40  # cosine >= this => same person (SFace ~0.363)
     cos_weak: float = 0.20  # with good IoU, this weaker cosine is accepted
     # --- embedding backend ---
-    embed_backend: str = "fp32"  # fp32 (OpenCV DNN) | int8 (official opencv_zoo int8 ONNX) | npu (TFLite + delegate)
+    embed_backend: str = (
+        "fp32"  # fp32 (SFace, ONNX Runtime) | int8 (official opencv_zoo int8 ONNX) | npu (TFLite + delegate)
+    )
     # external TFLite delegate .so (NNAPI / NeuroPilot); empty -> CPU. SECURITY: loading a shared library
     # runs native code, so this is set only server-side (env PRESENCE_NPU_DELEGATE), never over WebSocket.
     npu_delegate_path: str = field(default_factory=lambda: os.environ.get("PRESENCE_NPU_DELEGATE", ""))

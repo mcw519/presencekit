@@ -1,12 +1,15 @@
-"""Pluggable Detector / Embedder. Default: OpenCV YuNet + SFace (ONNX, CPU).
-Fallback (no model files): Haar cascade (bundled with OpenCV) + HSV color-histogram embedding."""
+"""Vision pipeline: face detector + embedder, the pose loader and in-memory JPEG decode.
+
+Default (v0.14): YuNet + SFace on ONNX Runtime (:mod:`presence_demo.inference`). Fallbacks, in order: YuNet on
+OpenCV DNN when only the fixed-size opencv_zoo file is present, then the Haar cascade + HSV histogram (no model
+files). Model files come from the model store (``presence_demo.inference.ModelStore``; ``PRESENCE_MODEL_DIR``).
+"""
 
 from __future__ import annotations
 
 import logging
 import os
 import time
-import urllib.request
 from pathlib import Path
 
 import cv2
@@ -15,123 +18,79 @@ import numpy as np
 from .core.tracks import Detection
 from .detectors.base import Embedder, FaceDetector, PoseDetector  # noqa: F401  (re-exported)
 from .detectors.embed import HistEmbedder, SFaceEmbedder
-from .detectors.face import HaarDetector, YuNetDetector
-from .detectors.pose import COCO_KP, COCO_KP_IDX, MoveNetMultiPoseDetector  # noqa: F401  (re-exported)
+from .detectors.face import HaarDetector, OrtYuNetDetector, YuNetDetector
+from .detectors.pose import COCO_KP, COCO_KP_IDX, MoveNetMultiPoseDetector, OrtMoveNetDetector  # noqa: F401
+from .embed_backends import OrtSFace
+from .inference import CATALOG, ModelSpec, OrtOptions, default_root, default_store
 from .intent import frontal_from_landmarks
 
 log = logging.getLogger(__name__)
-MODEL_DIR = Path(os.environ.get("PRESENCE_MODEL_DIR", Path(__file__).resolve().parent.parent / "models"))
+MODEL_DIR = default_root()
+
+
+def _spec(key: str) -> tuple:
+    s = CATALOG[key]
+    return (s.filename, s.url, s.sha256) if s.sha256 else (s.filename, s.url)
+
+
+# v0.12/v0.13 tuples (filename, url[, sha256]); the catalogue in presence_demo.inference.models is the source.
 ZOO = "https://github.com/opencv/opencv_zoo/raw/main/models/"
-YUNET = ("face_detection_yunet_2023mar.onnx", ZOO + "face_detection_yunet/face_detection_yunet_2023mar.onnx")
-SFACE = (
-    "face_recognition_sface_2021dec.onnx",
-    ZOO + "face_recognition_sface/face_recognition_sface_2021dec.onnx",
-    "0ba9fbfa01b5270c96627c4ef784da859931e02f04419c829e83484087c34e79",
-)
-# official opencv_zoo INT8 quantization of the same model (sha256 = git-LFS oid in opencv_zoo)
-SFACE_INT8 = (
-    "face_recognition_sface_2021dec_int8.onnx",
-    ZOO + "face_recognition_sface/face_recognition_sface_2021dec_int8.onnx",
-    "2b0e941e6f16cc048c20aee0c8e31f569118f65d702914540f7bfdc14048d78a",
-)
-# produced locally by scripts/export_sface_tflite.py (not downloadable; not committed)
-SFACE_TFLITE = {
-    "int8": "face_recognition_sface_2021dec_int8.tflite",
-    "fp16": "face_recognition_sface_2021dec_fp16.tflite",
-}
-
-
-# MoveNet.MultiPose Lightning (Google, Apache-2.0), TFLite float16, run with ai-edge-litert (LiteRT).
-# Source / license: https://www.kaggle.com/models/google/movenet  (variation tfLite/multipose-lightning-tflite-float16)
-MOVENET = (
-    "movenet_multipose_lightning_fp16.tflite",
-    "https://www.kaggle.com/api/v1/models/google/movenet/tfLite/multipose-lightning-tflite-float16/1/download",
-)
+YUNET_ORT = _spec("yunet")  # dynamic input size, for ONNX Runtime
+YUNET = _spec("yunet-opencv")  # fixed 640x640 export, OpenCV DNN fallback
+SFACE = _spec("sface")
+SFACE_INT8 = _spec("sface-int8")
+SFACE_TFLITE = {"int8": CATALOG["sface-tflite-int8"].filename, "fp16": CATALOG["sface-tflite-fp16"].filename}
+MOVENET_ONNX = CATALOG["movenet"].filename  # produced by scripts/export_movenet_onnx.py
+MOVENET = _spec("movenet-tflite")
 
 # v0.12 name of the face detector protocol
 Detector = FaceDetector
+SFACE_EMBEDDERS = (OrtSFace, SFaceEmbedder)  # embedders that select_embedder may swap
+
+
+def _catalog_spec(fname: str, url: str | None = None, sha256: str | None = None) -> ModelSpec:
+    """The catalogue entry for ``fname``, or an ad-hoc spec for a file the catalogue does not know."""
+    known = next((s for s in CATALOG.values() if s.filename == fname), None)
+    return known or ModelSpec(fname, fname, url, sha256)
+
+
+def _local(spec) -> Path | None:
+    """Already-present model file (no network)."""
+    return default_store().local(_catalog_spec(*spec))
+
+
+def ensure_model(fname, url=None, sha256: str | None = None) -> Path | None:
+    """Return the model path, downloading it on first use (sha256-verified). None when unavailable."""
+    return default_store().ensure(_catalog_spec(fname, url, sha256))
 
 
 def ensure_movenet() -> Path | None:
-    """Download the Kaggle tarball (contains a single .tflite) once, extracting in memory."""
-    import io
-    import tarfile
+    """The MoveNet TFLite model (Kaggle tarball, extracted in memory), downloaded once."""
+    return default_store().ensure("movenet-tflite")
 
-    fname, url = MOVENET
-    p = MODEL_DIR / fname
-    if p.exists() and p.stat().st_size > 1000:
-        return p
+
+def load_pose_detector(allow_download: bool = True, options: OrtOptions | None = None) -> PoseDetector | None:
+    """MoveNet on ONNX Runtime when the exported ONNX file is present, else the TFLite model on LiteRT (downloaded
+    on first use; needs ``ai-edge-litert``). None if neither is available."""
+    store = default_store()
+    p = store.local("movenet")
+    if p:
+        try:
+            return OrtMoveNetDetector(p, options=options or OrtOptions.from_env())
+        except Exception as e:  # noqa: BLE001
+            log.warning("MoveNet ONNX failed to load, trying LiteRT: %s", e)
     try:
-        MODEL_DIR.mkdir(parents=True, exist_ok=True)
-        log.info("downloading %s", url)
-        with urllib.request.urlopen(url, timeout=60) as r:
-            data = r.read()
-        with tarfile.open(fileobj=io.BytesIO(data)) as tf:
-            m = next(m for m in tf.getmembers() if m.name.endswith(".tflite"))
-            p.write_bytes(tf.extractfile(m).read())
-        return p
-    except Exception as e:  # noqa: BLE001
-        log.warning("pose model download failed: %s", e)
+        import ai_edge_litert  # noqa: F401
+    except ImportError:
+        log.warning("pose unavailable: run scripts/export_movenet_onnx.py, or install the litert extra")
         return None
-
-
-def load_pose_detector(allow_download: bool = True) -> PoseDetector | None:
-    """Load the default pose detector, downloading the model on first use. None if unavailable."""
-    p = ensure_movenet() if allow_download else (MODEL_DIR / MOVENET[0])
-    if not p or not Path(p).exists():
+    p = ensure_movenet() if allow_download else store.local("movenet-tflite")
+    if not p:
         return None
     try:
         return MoveNetMultiPoseDetector(p)
     except Exception as e:  # noqa: BLE001
         log.warning("pose model failed to load: %s", e)
-        return None
-
-
-def _sha256(p: Path) -> str:
-    import hashlib
-
-    h = hashlib.sha256()
-    with open(p, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-_verified: set = set()
-
-
-def _local(spec) -> Path | None:
-    """Already-downloaded model file (no network)."""
-    p = MODEL_DIR / spec[0]
-    return p if p.exists() and p.stat().st_size > 1000 else None
-
-
-def ensure_model(fname, url, sha256: str | None = None) -> Path | None:
-    """Return the model path, downloading it on first use; verify sha256 when given."""
-    p = MODEL_DIR / fname
-    if p.exists() and p.stat().st_size > 1000:
-        if sha256 and p not in _verified:
-            if _sha256(p) != sha256:
-                log.warning("checksum mismatch for %s, re-downloading", fname)
-                p.unlink()
-                return ensure_model(fname, url, sha256)
-            _verified.add(p)
-        return p
-    try:
-        MODEL_DIR.mkdir(parents=True, exist_ok=True)
-        log.info("downloading %s", url)
-        tmp = p.with_suffix(p.suffix + ".part")
-        urllib.request.urlretrieve(url, tmp)
-        if sha256 and _sha256(tmp) != sha256:
-            tmp.unlink()
-            raise ValueError(f"sha256 mismatch for {fname}")
-        tmp.replace(p)
-        _verified.add(p)
-        return p
-    except Exception as e:  # noqa: BLE001
-        log.warning("model download failed (%s): %s", fname, e)
-        if p.exists():
-            p.unlink()
         return None
 
 
@@ -143,60 +102,98 @@ def decode_jpeg(data: bytes) -> tuple[np.ndarray | None, float]:
 
 
 class VisionPipeline:
-    def __init__(self, detector: Detector | None = None, embedder: Embedder | None = None, allow_download: bool = True):
-        if detector is None:
-            p = ensure_model(*YUNET) if allow_download else _local(YUNET)
-            detector = YuNetDetector(p) if p else HaarDetector()
-        if embedder is None:
-            # PRESENCE_FACE_EMBEDDER=hist disables SFace (see docs/licenses.md for the training-data caveat).
-            want_sface = os.environ.get("PRESENCE_FACE_EMBEDDER", "sface").lower() != "hist"
-            p = (ensure_model(*SFACE) if allow_download else _local(SFACE)) if want_sface else None
-            embedder = SFaceEmbedder(p) if p and isinstance(detector, YuNetDetector) else HistEmbedder()
-        self.detector, self.embedder = detector, embedder
+    """Face detector + embedder (+ SFace backend switching). ``options`` decides how the ONNX models run
+    (default: ``OrtOptions.from_env()``)."""
+
+    def __init__(
+        self,
+        detector: Detector | None = None,
+        embedder: Embedder | None = None,
+        allow_download: bool = True,
+        options: OrtOptions | None = None,
+    ):
+        self.options = options or OrtOptions.from_env()
         self.allow_download = allow_download
+        notes = []
+        if detector is None:
+            detector = self._default_detector(notes)
+        if embedder is None:
+            embedder = self._default_embedder(detector, notes)
+        self.detector, self.embedder = detector, embedder
         self._embedders: dict = {}
         self._backend_key = ("fp32", "", "int8")
         self.embed_status = {
             "requested": "fp32",
-            "active": "fp32" if isinstance(embedder, SFaceEmbedder) else "hist",
+            "active": "fp32" if isinstance(embedder, SFACE_EMBEDDERS) else "hist",
             "model": embedder.name,
-            "accelerator": "cpu (OpenCV DNN)",
-            "note": "",
+            "accelerator": getattr(embedder, "accelerator", "cpu"),
+            "note": "; ".join(notes),
         }
+
+    def _model(self, spec) -> Path | None:
+        return ensure_model(*spec) if self.allow_download else _local(spec)
+
+    def _default_detector(self, notes: list) -> Detector:
+        p = self._model(YUNET_ORT)
+        if p:
+            try:
+                return OrtYuNetDetector(p, options=self.options)
+            except Exception as e:  # noqa: BLE001
+                log.warning("YuNet on onnxruntime failed: %s", e)
+                notes.append(f"YuNet ONNX Runtime unavailable ({type(e).__name__})")
+        p = _local(YUNET)
+        return YuNetDetector(p) if p else HaarDetector()
+
+    def _default_embedder(self, detector: Detector, notes: list) -> Embedder:
+        # PRESENCE_FACE_EMBEDDER=hist disables SFace (see docs/licenses.md for the training-data caveat).
+        if os.environ.get("PRESENCE_FACE_EMBEDDER", "sface").lower() == "hist":
+            return HistEmbedder()
+        p = self._model(SFACE)
+        if not p or not getattr(detector, "landmarks", False):
+            return HistEmbedder()
+        try:
+            return OrtSFace(p, "fp32", self.options)
+        except Exception as e:  # noqa: BLE001
+            log.warning("SFace on onnxruntime failed, using OpenCV DNN: %s", e)
+            notes.append(f"SFace ONNX Runtime unavailable ({type(e).__name__}); OpenCV DNN")
+            return SFaceEmbedder(p)
+
+    def prepare_backend(self, backend: str) -> None:
+        """Download the model file ``backend`` needs (no switching; safe without the vision lock)."""
+        if backend == "int8" and self.allow_download and isinstance(self.embedder, SFACE_EMBEDDERS):
+            ensure_model(*SFACE_INT8)
 
     def select_embedder(self, backend: str = "fp32", delegate_path: str = "", precision: str = "int8") -> dict:
         """Switch the SFace backend (fp32 | int8 | npu). Unavailable backends fall back to fp32 with a note.
 
         Only applies when the default SFace embedder is in use (not the HSV-histogram fallback)."""
         key = (backend, delegate_path or "", precision)
-        if key == self._backend_key or not isinstance(self._embedders.get("fp32", self.embedder), SFaceEmbedder):
+        if key == self._backend_key or not isinstance(self._embedders.get("fp32", self.embedder), SFACE_EMBEDDERS):
             return self.embed_status
         if "fp32" not in self._embedders:
-            if not isinstance(self.embedder, SFaceEmbedder):
-                return self.embed_status
             self._embedders["fp32"] = self.embedder
-        from .embed_backends import OpenCVSFace, TFLiteSFace
+        from .embed_backends import TFLiteSFace
 
-        note, emb, accel = "", None, "cpu (OpenCV DNN)"
+        note, emb = "", None
         try:
             if backend == "int8":
                 emb = self._embedders.get("int8")
                 if emb is None:
-                    p = ensure_model(*SFACE_INT8) if self.allow_download else _local(SFACE_INT8)
+                    p = self._model(SFACE_INT8)
                     if not p or not Path(p).exists():
                         raise FileNotFoundError(SFACE_INT8[0])
-                    emb = self._embedders["int8"] = OpenCVSFace(p, "int8")
+                    emb = self._embedders["int8"] = OrtSFace(p, "int8", self.options)
             elif backend == "npu":
                 emb = self._embedders.get(key)
                 if emb is None:
-                    p = MODEL_DIR / SFACE_TFLITE.get(precision, SFACE_TFLITE["int8"])
+                    p = default_store().root / SFACE_TFLITE.get(precision, SFACE_TFLITE["int8"])
                     if not p.exists():
                         raise FileNotFoundError(f"{p.name} (run scripts/export_sface_tflite.py)")
                     emb = TFLiteSFace(p, delegate_path or None)
                     if emb.delegate_error or not delegate_path:
                         why = emb.delegate_error or "no npu_delegate_path set"
                         note = f"NPU delegate not active ({why}); running on CPU"
-                        fp16 = MODEL_DIR / SFACE_TFLITE["fp16"]
+                        fp16 = p.with_name(SFACE_TFLITE["fp16"])
                         if precision == "int8" and fp16.exists():
                             # LiteRT's CPU kernels are much faster for fp16 than for this int8 graph on x86
                             emb = TFLiteSFace(fp16)
@@ -204,22 +201,18 @@ class VisionPipeline:
                     emb.note = note
                     self._embedders[key] = emb
                 note = getattr(emb, "note", "")
-                accel = emb.accelerator
             else:
                 emb = self._embedders["fp32"]
         except Exception as e:  # noqa: BLE001
             log.warning("embedding backend %s unavailable, using fp32: %s", backend, e)
             emb, note = self._embedders["fp32"], f"{backend} unavailable ({e}); using fp32"
-        if emb is self._embedders["fp32"]:
-            accel = "cpu (OpenCV DNN)"
         self.embedder = emb
         self._backend_key = key
-        active = "fp32" if emb is self._embedders["fp32"] else backend
         self.embed_status = {
             "requested": backend,
-            "active": active,
+            "active": "fp32" if emb is self._embedders["fp32"] else backend,
             "model": emb.name,
-            "accelerator": accel,
+            "accelerator": getattr(emb, "accelerator", "cpu"),
             "note": note,
         }
         if note:
@@ -258,21 +251,24 @@ class VisionPipeline:
         temp files or logging of `data` here; the image buffer is dropped when this returns.
         tests/test_privacy.py enforces this.
         """
-        t0 = time.perf_counter()
-        img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
-        dec = (time.perf_counter() - t0) * 1000
+        img, dec = decode_jpeg(data)
         if img is None:
             return [], {"decode": dec, "detect": 0.0, "embed": 0.0, "w": 0, "h": 0}
         dets, t = self.process_timed(img)
         return dets, {"decode": dec, **t, "w": img.shape[1], "h": img.shape[0]}
 
     def info(self) -> dict:
+        import onnxruntime as ort
+
+        accel = getattr(self.detector, "accelerator", "cpu")
         return {
             "pipeline": self.name,
             "opencv": cv2.__version__,
             "cv_threads": cv2.getNumThreads(),
-            "dnn_backend": "OpenCV (CPU)",
+            "onnxruntime": ort.__version__,
+            "ort_providers": list(self.options.providers),
+            "dnn_backend": accel,
             "embed_backend": dict(self.embed_status),
-            "dnn_target": "CPU",
+            "dnn_target": accel.split(" ")[0].upper(),
             "cpu_count": os.cpu_count(),
         }

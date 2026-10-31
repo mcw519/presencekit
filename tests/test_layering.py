@@ -1,7 +1,8 @@
-"""Dependency direction of the v0.13 layers (static import check, no imports executed).
+"""Dependency direction of the layers (static import check, no imports executed).
 
 core      -> numpy + pure-python helpers only (no OpenCV, no web framework, no runtime/web modules)
-detectors -> may use OpenCV, never the web framework
+inference -> numpy + onnxruntime only (no OpenCV, no other presence_demo layer)
+detectors -> may use OpenCV and inference, never the web framework
 identity  -> never the web framework, never the web/runtime layers
 runtime   -> never the web framework (FastAPI/Starlette/uvicorn), never presence_demo.web / server
 """
@@ -9,6 +10,7 @@ runtime   -> never the web framework (FastAPI/Starlette/uvicorn), never presence
 from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
 
 from presence_demo.core import Observation, PresenceEvent, Step, VideoFrame
@@ -54,8 +56,10 @@ def _violations(layer: str, banned_roots: set[str], banned_prefixes: tuple[str, 
 
 
 def test_core_imports_only_numpy_and_pure_helpers():
-    banned = {"cv2", "ai_edge_litert", "psutil", *WEB_FRAMEWORK}
+    banned = {"cv2", "ai_edge_litert", "onnxruntime", "psutil", *WEB_FRAMEWORK}
     prefixes = (
+        "presence_demo.inference",
+        "presence_demo.sdk",
         "presence_demo.web",
         "presence_demo.runtime",
         "presence_demo.detectors",
@@ -83,6 +87,28 @@ def test_core_types_round_trip_the_legacy_dicts():
     assert Step(events=(), snapshot={}).events == ()
 
 
+def test_inference_depends_on_numpy_and_onnxruntime_only():
+    for f, names in _imports("inference").items():
+        for n in names:
+            root = n.split(".")[0]
+            assert (
+                root in {"numpy", "onnxruntime", "__future__"}
+                or root in sys.stdlib_module_names
+                or (n.startswith("presence_demo.inference"))
+            ), f"{f}: {n}"
+
+
+def test_sdk_never_imports_the_web_framework_or_the_web_runtime_layers():
+    path = PKG / "sdk.py"
+    names = {
+        (node.module if isinstance(node, ast.ImportFrom) else a.name)
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        if isinstance(node, (ast.Import, ast.ImportFrom))
+        for a in (node.names if isinstance(node, ast.Import) else [None])
+    }
+    assert not {n for n in names if n and n.split(".")[0] in WEB_FRAMEWORK | {"runtime", "web", "server", "stats"}}
+
+
 def test_detectors_never_import_the_web_framework_or_upper_layers():
     prefixes = ("presence_demo.web", "presence_demo.runtime", "presence_demo.server", "presence_demo.identity")
     assert not _violations("detectors", WEB_FRAMEWORK, prefixes)
@@ -103,8 +129,9 @@ def test_lower_layers_load_without_the_web_framework():
     import sys
 
     code = (
-        "import sys; import presence_demo.core, presence_demo.detectors, presence_demo.identity, "
-        "presence_demo.runtime; bad = sorted(m for m in sys.modules if m.split('.')[0] in "
+        "import sys; import presence_demo.core, presence_demo.inference, presence_demo.detectors, "
+        "presence_demo.identity, presence_demo.sdk, presence_demo.runtime; "
+        "bad = sorted(m for m in sys.modules if m.split('.')[0] in "
         "('fastapi', 'starlette', 'uvicorn') or m.startswith(('presence_demo.web', 'presence_demo.server'))); "
         "print(','.join(bad))"
     )

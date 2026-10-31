@@ -1,14 +1,15 @@
-"""Alternative SFace embedding backends (selected with ``Config.embed_backend``).
+"""SFace embedding backends (selected with ``Config.embed_backend``).
 
-* ``fp32`` – opencv_zoo ``face_recognition_sface_2021dec.onnx`` on OpenCV DNN (default).
-* ``int8`` – opencv_zoo's official ``face_recognition_sface_2021dec_int8.onnx`` on OpenCV DNN.
+* ``fp32`` – opencv_zoo ``face_recognition_sface_2021dec.onnx`` on ONNX Runtime (:class:`OrtSFace`, default).
+* ``int8`` – opencv_zoo's official ``face_recognition_sface_2021dec_int8.onnx`` on ONNX Runtime.
 * ``npu``  – SFace exported to TFLite (``scripts/export_sface_tflite.py``; full-INT8 or fp16), run with
   LiteRT (ai-edge-litert). An optional external delegate (``npu_delegate_path``: NNAPI / MediaTek
   NeuroPilot shared library on Android) is tried first; otherwise LiteRT's default CPU path (XNNPACK).
   The accelerator that is *actually* active is reported in :attr:`TFLiteSFace.accelerator`.
 
 All backends take the full frame plus a YuNet row (5 landmarks) and return an L2-normalised 128-d
-float32 vector. Frames and crops stay in memory.
+float32 vector. :class:`OpenCVSFace` (OpenCV DNN) is kept as a fallback and for comparisons. Frames and crops stay in
+memory.
 """
 
 from __future__ import annotations
@@ -18,6 +19,8 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+
+from .inference import OrtOptions, load_model
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +60,32 @@ def l2(v: np.ndarray) -> np.ndarray:
     v = np.asarray(v, np.float32).ravel()
     n = float(np.linalg.norm(v))
     return v / n if n > 0 else v
+
+
+def sface_blob(crop_bgr: np.ndarray) -> np.ndarray:
+    """OpenCV ``FaceRecognizerSF.feature`` input: aligned 112x112 crop -> RGB float 0..255, NCHW."""
+    return cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2RGB).astype(np.float32).transpose(2, 0, 1)[None]
+
+
+class OrtSFace:
+    """SFace (fp32, or the official int8 quantization) on ONNX Runtime with OpenCV ``FaceRecognizerSF``'s input
+    blob. Stateless per call, so it is safe to share between threads."""
+
+    def __init__(self, path, label: str = "fp32", options: OrtOptions | None = None):
+        self.model = load_model(path, options)
+        self.label = label
+        self.name = f"SFace {label}"
+        self._input = self.model.input_names[0]
+
+    @property
+    def accelerator(self) -> str:
+        return self.model.accelerator
+
+    def feature_aligned(self, crop: np.ndarray) -> np.ndarray:
+        return l2(self.model.run({self._input: sface_blob(crop)})[0])
+
+    def embed(self, img, raw):
+        return self.feature_aligned(align_crop(img, raw))
 
 
 class OpenCVSFace:

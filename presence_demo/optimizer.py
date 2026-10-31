@@ -127,6 +127,14 @@ class FrameProcessor:
         self.counts: dict[str, int] = {}  # one dict for the processor's lifetime: stats keep a reference to it
         self._clear()
 
+    def prepare(self, cfg: Config) -> None:
+        """Load what :meth:`process` may need (pose model, an alternative embedding model file) before the caller
+        takes a shared inference lock: a first use can download models, which must not stall other streams."""
+        if cfg.pose_enabled:
+            self._get_pose()
+        if hasattr(self.pipe, "prepare_backend"):
+            self.pipe.prepare_backend(cfg.embed_backend)
+
     def _get_pose(self) -> PoseDetector | None:
         if self._pose is None and self.pose_available is None and self.pose_loader is not None:
             self._pose = self.pose_loader()

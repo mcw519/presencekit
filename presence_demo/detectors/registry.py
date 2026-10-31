@@ -1,8 +1,8 @@
 """Name -> factory registry for detector implementations.
 
-v0.13 only registers the implementations that already ship; the default selection logic
-(``presence_demo.vision.VisionPipeline``: YuNet+SFace with Haar/HSV fallbacks, and
-``load_pose_detector``) is unchanged. Swapping or adding models is out of scope for v0.13.
+The plain names (``yunet``, ``sface``, ``movenet``) are the ONNX Runtime implementations (v0.14 defaults); the
+suffixed names are the OpenCV DNN / LiteRT variants kept as fallbacks. The default selection with its fallbacks
+lives in :class:`presence_demo.vision.VisionPipeline` and :func:`presence_demo.vision.load_pose_detector`.
 """
 
 from __future__ import annotations
@@ -40,18 +40,20 @@ def create(kind: str, name: str, *args: Any, **kwargs: Any) -> Any:
 
 
 def _register_builtin() -> None:
-    from ..embed_backends import OpenCVSFace, TFLiteSFace
-    from .embed import HistEmbedder, SFaceEmbedder
-    from .face import HaarDetector, YuNetDetector
-    from .pose import MoveNetMultiPoseDetector
+    from ..embed_backends import OpenCVSFace, OrtSFace, TFLiteSFace
+    from .embed import HistEmbedder
+    from .face import HaarDetector, OrtYuNetDetector, YuNetDetector
+    from .pose import MoveNetMultiPoseDetector, OrtMoveNetDetector
 
-    register("face", "yunet", YuNetDetector)
+    register("face", "yunet", OrtYuNetDetector)
+    register("face", "yunet-opencv", YuNetDetector)
     register("face", "haar", HaarDetector)
-    register("embedder", "sface", SFaceEmbedder)
+    register("embedder", "sface", OrtSFace)
     register("embedder", "sface-opencv", OpenCVSFace)
     register("embedder", "sface-tflite", TFLiteSFace)
     register("embedder", "hist", HistEmbedder)
-    register("pose", "movenet", MoveNetMultiPoseDetector)
+    register("pose", "movenet", OrtMoveNetDetector)
+    register("pose", "movenet-tflite", MoveNetMultiPoseDetector)
 
 
 _register_builtin()

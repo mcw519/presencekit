@@ -9,7 +9,10 @@ import numpy as np
 
 class FaceDetector(Protocol):
     """Faces in pixel coordinates: ``[(raw_row, conf)]`` where ``raw_row`` is the YuNet layout
-    (x, y, w, h, 5 landmark pairs, score). Also exported as ``presence_demo.vision.Detector``."""
+    (x, y, w, h, 5 landmark pairs, score). Also exported as ``presence_demo.vision.Detector``.
+
+    Optional attributes read with ``getattr``: ``landmarks`` (True when the rows carry the 5 landmarks an SFace
+    embedder aligns on) and ``accelerator`` (shown in diagnostics)."""
 
     name: str
 
