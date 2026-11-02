@@ -1,5 +1,5 @@
 flowchart LR
-  subgraph static["presence_demo/static (browser)"]
+  subgraph static["presencekit/static (browser)"]
     direction TB
     HTML["index.html"] --> JS["js/*.js<br/>i18n · core · settings · app<br/>audio · panels · main"]
     JS --> I18N["i18n/en.js · zh-TW.js"]
@@ -9,7 +9,7 @@ flowchart LR
     SRV["server.py<br/>app, routes, auth"] --> SES["web/session.py<br/>handshake, receive loop"]
     SES --> OB["web/outbox.py<br/>send queue"]
   end
-  subgraph runtime["presence_demo/runtime (no web framework)"]
+  subgraph runtime["presencekit/runtime (no web framework)"]
     direction TB
     PR["session.py<br/>PresenceRuntime<br/>one per connection"]
     CTX["context.py AppContext<br/>resources.py<br/>models, locks, pools"]
@@ -17,13 +17,13 @@ flowchart LR
   end
   subgraph lower[" "]
     direction TB
-    subgraph identity["presence_demo/identity"]
+    subgraph identity["presencekit/identity"]
       DRV["driver.py ContinuationDriver<br/>matcher.py IdentityMatcher<br/>guard · decision<br/>store (in-memory)"]
     end
-    subgraph detectors["presence_demo/detectors"]
+    subgraph detectors["presencekit/detectors"]
       DET["base.py protocols<br/>registry.py<br/>face · embed · pose<br/>used by vision.py"]
     end
-    subgraph core["presence_demo/core (numpy only)"]
+    subgraph core["presencekit/core (numpy only)"]
       ENG["engine.py PresenceCore<br/>tracker · state_machine<br/>tracking · types"]
     end
   end

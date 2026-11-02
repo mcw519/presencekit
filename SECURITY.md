@@ -15,7 +15,7 @@ problem before you disclose it.
 
 ## Scope and deployment notes
 
-presence-demo is a demo and research tool. When you run it:
+PresenceKit is a multimodal presence SDK with a web demo. When you run it:
 
 - Set `PRESENCE_TOKEN` whenever anyone else can reach the server, and serve it over HTTPS. Without a token every
   endpoint and the WebSocket are open.

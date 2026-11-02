@@ -10,9 +10,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from presence_demo import audio
-from presence_demo.audio import SR, AudioStream, CleanVAD, CrossCheckAdjuster
-from presence_demo.tracker import Config, Detection, PresenceTracker
+from presencekit import audio
+from presencekit.audio import SR, AudioStream, CleanVAD, CrossCheckAdjuster
+from presencekit.tracker import Config, Detection, PresenceTracker
 
 OK, WHY = audio.puresound_available()
 needs_ps = pytest.mark.skipif(not OK, reason=WHY)
@@ -313,7 +313,7 @@ def test_browser_vad_behaviour_unchanged():
 def test_ws_audio_round_trip_writes_no_files():
     from fastapi.testclient import TestClient
 
-    from presence_demo import server
+    from presencekit import server
 
     def snapshot(*dirs):
         out = {}
@@ -367,8 +367,8 @@ def test_audio_block_metrics_include_batch_wait_and_exclude_it_from_processing(m
 
     from fastapi.testclient import TestClient
 
-    from presence_demo.server import app
-    from presence_demo.web import session
+    from presencekit.server import app
+    from presencekit.web import session
 
     samples = []
     original_record = session.AudioStats.record

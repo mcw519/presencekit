@@ -1,6 +1,6 @@
 from dataclasses import fields
 
-from presence_demo.tracker import RANGES, Config
+from presencekit.tracker import RANGES, Config
 
 
 def test_ranges_cover_all_fields():

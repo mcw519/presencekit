@@ -2,7 +2,7 @@
 
 # Privacy
 
-presence-demo watches people with a camera and a microphone, so it is designed to keep as little as possible for
+PresenceKit watches people with a camera and a microphone, so it is designed to keep as little as possible for
 as short as possible. This page collects every rule in one place. The rules are enforced by tests where possible.
 
 ## Defaults: nothing leaves, nothing is written

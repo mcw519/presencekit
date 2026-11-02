@@ -1,4 +1,4 @@
-from presence_demo.stats import ConnStats, _pct, system_stats
+from presencekit.stats import ConnStats, _pct, system_stats
 
 
 class Clk:
@@ -34,7 +34,7 @@ def test_system_stats_shape():
 
 
 def test_audio_recent_weighting_eviction_and_capacity():
-    from presence_demo.stats import AudioStats
+    from presencekit.stats import AudioStats
 
     clock = Clk()
     stats = AudioStats(clock=clock, limit=3)

@@ -3,8 +3,8 @@
 import asyncio
 import time
 
-from presence_demo.reid import CrossSessionReid, Ref, ReferenceStore
-from presence_demo.tracker import Config
+from presencekit.reid import CrossSessionReid, Ref, ReferenceStore
+from presencekit.tracker import Config
 
 
 def face(tid, usable=True):

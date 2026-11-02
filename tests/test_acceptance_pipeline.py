@@ -2,7 +2,7 @@
 
 import pytest
 
-from presence_demo import acceptance_pipeline as pipeline
+from presencekit import acceptance_pipeline as pipeline
 
 
 def samples(seconds=10, rtf=0.3, queue=0, dropped=0, rss_growth_mib=0):

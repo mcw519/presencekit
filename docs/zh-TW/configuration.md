@@ -2,7 +2,7 @@
 
 # 設定參數
 
-伺服器端參數在 `presence_demo/config.py`（`Config`），允許範圍在 `RANGES`。網頁送來的值會先檢查、限制在範圍內，
+伺服器端參數在 `presencekit/config.py`（`Config`），允許範圍在 `RANGES`。網頁送來的值會先檢查、限制在範圍內，
 **只套用到該連線**，並回傳警告。`GET /api/config` 會回傳預設值和範圍。
 
 **設定**抽屜依管線模組分組，順序和資料流相同：
@@ -21,7 +21,7 @@
 ## 分組檢視（v0.13）
 
 `Config` 仍保留扁平鍵：它們依然是儲存方式、傳輸格式（`/api/config`、WebSocket `config` 訊息、預設組合、匯出的
-JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵都恰好屬於 `presence_demo.config.GROUPS` 中的一個分組
+JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵都恰好屬於 `presencekit.config.GROUPS` 中的一個分組
 （`core`、`tracker`、`presence`、`intent`、`vision`、`pose`、`perf`、`audio`、`asr`、`reid`）。
 `cfg.group("reid").reid_threshold` 與 `cfg.reid_threshold` 是同一個值；`cfg.group(name).update({...})` 只對該分組
 套用相同的驗證規則；`cfg.as_groups()` 回傳巢狀複本。伺服器程序層級的設定仍然使用環境變數。
@@ -67,7 +67,7 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | 變數 | 意思 |
 |---|---|
 | `PRESENCE_TOKEN` | 設定後，頁面、API、WebSocket 都需要 `?token=` |
-| `PRESENCE_MODEL_DIR` | 模型存放位置（預設：原始碼目錄下的 `models/`，否則 `~/.cache/presence-demo/models`） |
+| `PRESENCE_MODEL_DIR` | 模型存放位置（預設：原始碼目錄下的 `models/`，否則 `~/.cache/presencekit/models`） |
 | `PRESENCE_ORT_PROVIDERS` | ONNX Runtime 執行提供者，例如 `coreml,cpu` 或 `auto`（預設 `cpu`）；見 [SDK 與 ONNX Runtime](sdk.md) |
 | `PRESENCE_ORT_THREADS`、`PRESENCE_ORT_GRAPH_OPT` | 每個模型的執行緒數（0 = 由 ORT 決定）與圖最佳化等級（`disable`/`basic`/`extended`/`all`） |
 | `PRESENCE_FACE_EMBEDDER=hist` | 不載入 SFace，改用 HSV 直方圖備援 |

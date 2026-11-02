@@ -5,11 +5,16 @@
 
 ## 0.14.0 — unreleased
 
+Renamed the project, distribution, Python package and CLI to **PresenceKit** (`presencekit`). Update imports
+from `presence_demo` to `presencekit` and launch the web demo with `uv run presencekit`. The `PRESENCE_*`
+environment variables and browser settings are unchanged. Existing per-user `presence-demo/models` caches
+are reused when the new `presencekit/models` cache does not exist. The GitHub repository is now `https://github.com/mcw519/presencekit`.
+
 SDK release: every neural model runs on ONNX Runtime, and the detection logic can be embedded without the web
 demo. Tracking, presence and state-machine behaviour, wire protocol and settings are unchanged (exceptions under
 *Fixes*). See [docs/sdk.md](docs/sdk.md).
 
-- **`presence_demo.inference`** (numpy + onnxruntime only): `OrtOptions` (execution providers with aliases and
+- **`presencekit.inference`** (numpy + onnxruntime only): `OrtOptions` (execution providers with aliases and
   `auto`, threads, graph optimisation; `PRESENCE_ORT_PROVIDERS` / `PRESENCE_ORT_THREADS` / `PRESENCE_ORT_GRAPH_OPT`),
   `load_model` with one shared session per (file, options) and an automatic CPU fallback when an accelerator fails,
   in-memory graph sanitising (weights listed as graph inputs are removed so ORT can fold constants; no `onnx`
@@ -22,11 +27,11 @@ demo. Tracking, presence and state-machine behaviour, wire protocol and settings
   the same layer. Measured on Apple M-series CPU: YuNet 4.6 → 2.7 ms, SFace 5.4 → 3.0 ms; MoveNet 3.2 → 5.2 ms
   (slower than LiteRT's XNNPACK). OpenCV DNN, LiteRT and Haar remain as fallbacks; registry names `yunet`, `sface`,
   `movenet` now mean the ORT implementations (`yunet-opencv`, `movenet-tflite` added).
-- **`presence_demo.sdk.PresenceEngine`**: frames (BGR or JPEG), host VAD or PureSound PCM in, `Step` out; settings,
+- **`presencekit.sdk.PresenceEngine`**: frames (BGR or JPEG), host VAD or PureSound PCM in, `Step` out; settings,
   distance calibration, reset and diagnostics; no web framework, asyncio or threads (import is checked to load
   neither the web stack nor psutil).
 - **Packaging**: `onnxruntime` is a core dependency; the web demo moved to the `web` extra and LiteRT to the
-  `litert` extra (`uv sync` still installs both for development). `presence-demo` without the web extra exits with
+  `litert` extra (`uv sync` still installs both for development). `presencekit` without the web extra exits with
   an install hint.
 - **Web UI / diagnostics**: Resources shows an ONNX Runtime row (version, accelerator, providers);
   `VisionPipeline.info()` adds `onnxruntime` and `ort_providers`.
@@ -36,7 +41,7 @@ demo. Tracking, presence and state-machine behaviour, wire protocol and settings
   face (`frontal = 0`), which blocked joining with `intent_model = score` (now unknown → neutral default); an
   infinite value for an integer setting raised `OverflowError` instead of a warning; dwell and intent smoothing
   treated a timestamp of exactly 0 as missing (virtual clocks); a non-ASCII `?token=` caused HTTP 500 instead of a
-  refusal. `calibrate` moved to `presence_demo.body` (re-exported from `runtime.resources` and `server`).
+  refusal. `calibrate` moved to `presencekit.body` (re-exported from `runtime.resources` and `server`).
 - **State machine fixes**: with `priority_mode = vision` and `present_max_silence > 0`, a silent person in view made
   the state flip AWAY ↔ ACTIVE on every evaluation and the session never ended (rules and hmm). Continued silent
   presence is no longer a return from that AWAY: speech from someone in view, a re-entry or a new person is (the

@@ -2,16 +2,23 @@
 
 # SDK and ONNX Runtime
 
-Since v0.14 the detection logic can be embedded without the web demo. `presence_demo.sdk.PresenceEngine` takes camera
+Since v0.14 the detection logic can be embedded without the web demo. `presencekit.sdk.PresenceEngine` takes camera
 frames (and optionally audio) and returns presence state and events, and every neural model runs on
-[ONNX Runtime](https://onnxruntime.ai) through one small layer, `presence_demo.inference`.
+[ONNX Runtime](https://onnxruntime.ai) through one small layer, `presencekit.inference`.
+
+## Migrating from presence-demo
+
+The distribution, Python package and CLI are now `presencekit`. Replace `from presence_demo...` with
+`from presencekit...` and run `uv run presencekit` for the web demo. Re-run `uv sync` in a source checkout to
+install the renamed package. Existing `PRESENCE_*` environment variables and browser settings still work.
+The old per-user `~/.cache/presence-demo/models` cache is reused if the new cache does not exist.
 
 ## Install
 
 ```bash
-pip install presence-demo                 # SDK: numpy, OpenCV (image ops), onnxruntime, psutil
-pip install "presence-demo[web]"          # + the FastAPI web demo (presence-demo command)
-pip install "presence-demo[litert]"       # + LiteRT: MoveNet TFLite fallback, SFace TFLite / NPU delegate backend
+pip install presencekit                 # SDK: numpy, OpenCV (image ops), onnxruntime, psutil
+pip install "presencekit[web]"          # + the FastAPI web demo (presencekit command)
+pip install "presencekit[litert]"       # + LiteRT: MoveNet TFLite fallback, SFace TFLite / NPU delegate backend
 uv sync                                   # development: SDK + web + litert + test tools
 ```
 
@@ -22,7 +29,7 @@ For a GPU or NPU build, install the matching ONNX Runtime package instead of `on
 ## Use
 
 ```python
-from presence_demo.sdk import PresenceEngine
+from presencekit.sdk import PresenceEngine
 
 engine = PresenceEngine()  # YuNet + SFace on ONNX Runtime, downloaded on first use
 while running:
@@ -51,15 +58,15 @@ Notes:
 - Time comes from `clock` (default `time.monotonic`). For replays or tests, pass a virtual clock:
   `PresenceEngine(clock=lambda: t)`.
 - `PresenceEngine(pipeline=VisionPipeline(detector=..., embedder=...))` plugs in your own detector or embedder
-  (see the protocols in `presence_demo.detectors`); `pose=False` disables the pose model, `pose=my_detector`
+  (see the protocols in `presencekit.detectors`); `pose=False` disables the pose model, `pose=my_detector`
   replaces it.
-- Importing `presence_demo.sdk` loads no web framework, starts no thread and reads no model (checked by
+- Importing `presencekit.sdk` loads no web framework, starts no thread and reads no model (checked by
   `tests/test_sdk.py` and `tests/test_layering.py`).
 
 ## ONNX Runtime options
 
 ```python
-from presence_demo.inference import OrtOptions
+from presencekit.inference import OrtOptions
 
 engine = PresenceEngine(ort=OrtOptions(providers=("coreml", "cpu"), intra_op_threads=4))
 ```
@@ -89,9 +96,9 @@ use, load time and any fallback note (for example a GPU provider that failed and
 
 ## Models
 
-All model files are described in one catalogue, `presence_demo.inference.CATALOG`, and stored by `ModelStore`:
+All model files are described in one catalogue, `presencekit.inference.CATALOG`, and stored by `ModelStore`:
 `ModelStore(root)`, else `$PRESENCE_MODEL_DIR`, else `models/` of a source checkout, else
-`~/.cache/presence-demo/models` (or `$XDG_CACHE_HOME`). Downloads are verified with sha256 and written atomically.
+`~/.cache/presencekit/models` (or `$XDG_CACHE_HOME`). Downloads are verified with sha256 and written atomically.
 
 | Key | File | Runtime | How to get it |
 |---|---|---|---|
@@ -120,7 +127,7 @@ file with your application.
 1. Install the ONNX Runtime package for the target (CPU, GPU or NPU build) and set `providers`.
 2. Bundle the model files (`ModelStore.status()` lists what is present) and point `PRESENCE_MODEL_DIR` or
    `ModelStore(root)` at them; use `allow_download=False` on devices without network access.
-3. Feed `process_frame` with unmirrored BGR frames at 0.5–2 fps (`presence_demo.optimizer.recommend_fps` gives
+3. Feed `process_frame` with unmirrored BGR frames at 0.5–2 fps (`presencekit.optimizer.recommend_fps` gives
    the adaptive rate the web demo uses) and your VAD, or 16 kHz PCM16 to `process_audio`.
 4. Read `step.events` / `step.snapshot`; `engine.info()` shows which provider each model actually runs on.
 

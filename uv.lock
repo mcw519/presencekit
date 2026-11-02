@@ -830,7 +830,7 @@ wheels = [
 ]
 
 [[package]]
-name = "presence-demo"
+name = "presencekit"
 version = "0.14.0"
 source = { editable = "." }
 dependencies = [
@@ -859,7 +859,7 @@ web = [
 dev = [
     { name = "httpx" },
     { name = "onnx" },
-    { name = "presence-demo", extra = ["litert", "web"] },
+    { name = "presencekit", extra = ["litert", "web"] },
     { name = "pytest" },
     { name = "ruff" },
     { name = "websockets", version = "16.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -883,7 +883,7 @@ provides-extras = ["web", "litert", "puresound"]
 dev = [
     { name = "httpx", specifier = ">=0.27" },
     { name = "onnx", specifier = ">=1.16" },
-    { name = "presence-demo", extras = ["web", "litert"] },
+    { name = "presencekit", extras = ["web", "litert"] },
     { name = "pytest", specifier = ">=7" },
     { name = "ruff", specifier = ">=0.6" },
     { name = "websockets", specifier = ">=12" },

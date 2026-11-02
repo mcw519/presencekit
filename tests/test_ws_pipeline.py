@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from presence_demo.server import app
+from presencekit.server import app
 
 
 def blank_jpeg():
@@ -19,7 +19,7 @@ def blank_jpeg():
 
 def test_index_served():
     r = TestClient(app).get("/")
-    assert r.status_code == 200 and "Presence Demo" in r.text
+    assert r.status_code == 200 and "PresenceKit" in r.text
 
 
 def test_ws_frame_and_vad_roundtrip():

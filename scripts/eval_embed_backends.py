@@ -24,9 +24,9 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 from faces_cc0 import augment, fetch_aligned_faces  # noqa: E402
 
-from presence_demo.embed_backends import OpenCVSFace, TFLiteSFace  # noqa: E402
-from presence_demo.tracker import Config  # noqa: E402
-from presence_demo.vision import MODEL_DIR, SFACE, SFACE_INT8, YUNET  # noqa: E402
+from presencekit.embed_backends import OpenCVSFace, TFLiteSFace  # noqa: E402
+from presencekit.tracker import Config  # noqa: E402
+from presencekit.vision import MODEL_DIR, SFACE, SFACE_INT8, YUNET  # noqa: E402
 
 
 def main():

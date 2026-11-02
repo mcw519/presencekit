@@ -9,14 +9,14 @@ from types import ModuleType
 
 import pytest
 
-from presence_demo.acceptance import exit_code, main, run_acceptance
+from presencekit.acceptance import exit_code, main, run_acceptance
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 @pytest.fixture
 def adapter(monkeypatch):
-    module = ModuleType("presence_demo.acceptance_cases")
+    module = ModuleType("presencekit.acceptance_cases")
     module.PROFILE_CONFIG = {"priority_mode": "vision", "cloud_asr": False}
 
     def cases(seeds):
@@ -32,14 +32,12 @@ def adapter(monkeypatch):
         ]
 
     module.functional_cases = cases
-    monkeypatch.setitem(sys.modules, "presence_demo.acceptance_cases", module)
+    monkeypatch.setitem(sys.modules, "presencekit.acceptance_cases", module)
     # Default fake has no pipeline adapters; unit tests must never start a server.
+    monkeypatch.setitem(sys.modules, "presencekit.acceptance_pipeline", ModuleType("presencekit.acceptance_pipeline"))
+    monkeypatch.setitem(sys.modules, "presencekit.acceptance_browser", ModuleType("presencekit.acceptance_browser"))
     monkeypatch.setitem(
-        sys.modules, "presence_demo.acceptance_pipeline", ModuleType("presence_demo.acceptance_pipeline")
-    )
-    monkeypatch.setitem(sys.modules, "presence_demo.acceptance_browser", ModuleType("presence_demo.acceptance_browser"))
-    monkeypatch.setitem(
-        sys.modules, "presence_demo.acceptance_browser_reid", ModuleType("presence_demo.acceptance_browser_reid")
+        sys.modules, "presencekit.acceptance_browser_reid", ModuleType("presencekit.acceptance_browser_reid")
     )
     return module
 
@@ -100,7 +98,7 @@ def test_selecting_pipeline_never_executes_functional_cases(adapter):
 
 
 def test_pipeline_and_soak_receive_requested_durations(adapter):
-    pipeline_module = sys.modules["presence_demo.acceptance_pipeline"]
+    pipeline_module = sys.modules["presencekit.acceptance_pipeline"]
     calls = []
 
     def suite_case(suite, seeds, seconds):
@@ -239,7 +237,7 @@ def test_invalid_cli_arguments_exit_before_writing(tmp_path):
 
 
 def test_real_functional_reconnect_and_sensor_contracts():
-    from presence_demo.acceptance_cases import functional_cases
+    from presencekit.acceptance_cases import functional_cases
 
     cases = {case["id"]: case for case in functional_cases(seeds=1)}
     reconnect = cases["transport.same_page_reconnect"]
@@ -263,7 +261,7 @@ def test_real_functional_reconnect_and_sensor_contracts():
 
 
 def test_functional_presence_contract_coverage_is_explicit():
-    from presence_demo.acceptance_cases import functional_cases
+    from presencekit.acceptance_cases import functional_cases
 
     cases = {case["id"]: case for case in functional_cases(seeds=1)}
     for people, case_id in (
@@ -300,8 +298,8 @@ def test_functional_presence_contract_coverage_is_explicit():
 @pytest.mark.parametrize(
     "suite,module_name,adapter_name",
     [
-        ("browser", "presence_demo.acceptance_browser", "run_browser"),
-        ("browser-reid", "presence_demo.acceptance_browser_reid", "run_browser_reid"),
+        ("browser", "presencekit.acceptance_browser", "run_browser"),
+        ("browser-reid", "presencekit.acceptance_browser_reid", "run_browser_reid"),
     ],
 )
 def test_browser_suite_is_isolated_and_does_not_accept_real_devices(
@@ -314,7 +312,7 @@ def test_browser_suite_is_isolated_and_does_not_accept_real_devices(
         pytest.fail("browser suite must not execute another suite")
 
     adapter.functional_cases = forbidden
-    pipeline = sys.modules["presence_demo.acceptance_pipeline"]
+    pipeline = sys.modules["presencekit.acceptance_pipeline"]
     pipeline.run_pipeline = pipeline.run_soak = forbidden
 
     def run_browser(seeds, seconds):
@@ -359,11 +357,11 @@ def test_all_includes_browser_in_order_and_propagates_failure(adapter):
             }
         ]
 
-    pipeline = sys.modules["presence_demo.acceptance_pipeline"]
+    pipeline = sys.modules["presencekit.acceptance_pipeline"]
     pipeline.run_pipeline = lambda seeds, seconds: run("pipeline", seeds, seconds)
     pipeline.run_soak = lambda seeds, seconds: run("soak", seeds, seconds)
-    sys.modules["presence_demo.acceptance_browser"].run_browser = lambda seeds, seconds: run("browser", seeds, seconds)
-    sys.modules["presence_demo.acceptance_browser_reid"].run_browser_reid = lambda seeds, seconds: run(
+    sys.modules["presencekit.acceptance_browser"].run_browser = lambda seeds, seconds: run("browser", seeds, seconds)
+    sys.modules["presencekit.acceptance_browser_reid"].run_browser_reid = lambda seeds, seconds: run(
         "browser-reid", seeds, seconds
     )
     report = run_acceptance(suite="all", pipeline_seconds=3, browser_seconds=4, soak_seconds=5)

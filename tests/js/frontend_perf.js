@@ -1,6 +1,6 @@
 // Browser scheduling/DOM/canvas regressions, without camera or audio devices.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const root=path.resolve(__dirname,'../../presence_demo/static/js');
+const root=path.resolve(__dirname,'../../presencekit/static/js');
 const read=n=>fs.readFileSync(path.join(root,n+'.js'),'utf8');
 let now=0,next=0,writes=0,clears=0,draws=0;const timers=new Map(),listeners={};
 const context2d=new Proxy({clearRect(){clears++},drawImage(){draws++},getImageData(){throw Error('GPU readback forbidden')}},{get:(o,k)=>o[k]||(()=>{})});

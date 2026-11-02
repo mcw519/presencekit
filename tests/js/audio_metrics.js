@@ -1,6 +1,6 @@
 // Audio diagnostics rendering uses processed PCM duration, not transition counts or wall time.
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
-const root=path.resolve(__dirname,'../../presence_demo/static'),source=fs.readFileSync(path.join(root,'js/audio.js'),'utf8');
+const root=path.resolve(__dirname,'../../presencekit/static'),source=fs.readFileSync(path.join(root,'js/audio.js'),'utf8');
 for(const locale of ['en','zh-TW']){
  const ctx={I18N:{},locale,output:'',fps:.5};vm.createContext(ctx);
  const run=s=>vm.runInContext(s,ctx);

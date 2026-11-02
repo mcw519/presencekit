@@ -24,8 +24,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from presence_demo.audio import SR, AudioStream  # noqa: E402
-from presence_demo.config import Config  # noqa: E402
+from presencekit.audio import SR, AudioStream  # noqa: E402
+from presencekit.config import Config  # noqa: E402
 
 
 def qos(value):
@@ -239,12 +239,12 @@ def serve(args):
     import onnxruntime as ort
     import uvicorn
 
-    from presence_demo.server import app
+    from presencekit.server import app
 
     if args.browser_synthetic:
         from fastapi.responses import FileResponse, HTMLResponse, Response
 
-        from presence_demo.server import index
+        from presencekit.server import index
 
         def synthetic_page():
             html = index().body.decode()
@@ -409,7 +409,7 @@ if __name__ == "__main__":
     if args.disable_kleidiai:
         import onnxruntime as ort
 
-        import presence_demo.audio as audio_module
+        import presencekit.audio as audio_module
 
         def controlled_session(path, threads=1):
             options = ort.SessionOptions()

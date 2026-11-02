@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 import pytest
 
-from presence_demo.optimizer import FrameProcessor, crop_box, map_raw_to_frame, moved, recommend_fps
-from presence_demo.tracker import Config
+from presencekit.optimizer import FrameProcessor, crop_box, map_raw_to_frame, moved, recommend_fps
+from presencekit.tracker import Config
 
 
 class Clock:
@@ -426,7 +426,7 @@ def test_gated_frames_reuse_appearance_but_pose_refresh_recomputes(monkeypatch, 
         calls.append(box)
         return np.array([len(calls)], np.float32)
 
-    monkeypatch.setattr("presence_demo.optimizer.descriptor", describe)
+    monkeypatch.setattr("presencekit.optimizer.descriptor", describe)
     proc, fake, clk = pose_setup()
     cfg = Config(pose_enabled=pose_enabled, tracker_mode="kalman", force_detect_seconds=10.0)
     first, _ = proc.process(frame(), cfg)
@@ -450,7 +450,7 @@ def test_gated_appearance_matches_face_bbox_after_cache_reordering(monkeypatch):
         calls.append(box)
         return np.array([len(calls)], np.float32)
 
-    monkeypatch.setattr("presence_demo.optimizer.descriptor", describe)
+    monkeypatch.setattr("presencekit.optimizer.descriptor", describe)
     proc, fake, clk = pose_setup()
     cfg = Config(tracker_mode="kalman", roi_crop=False, max_width=1920)
     original_detect = proc.pipe.detector.detect
@@ -473,7 +473,7 @@ def test_gated_appearance_matches_face_bbox_after_cache_reordering(monkeypatch):
 
 def test_switch_to_kalman_computes_appearance(monkeypatch):
     calls = []
-    monkeypatch.setattr("presence_demo.optimizer.descriptor", lambda img, box: calls.append(box))
+    monkeypatch.setattr("presencekit.optimizer.descriptor", lambda img, box: calls.append(box))
     proc, fake, clk = pose_setup()
     cfg = Config(tracker_mode="legacy")
     proc.process(frame(), cfg)

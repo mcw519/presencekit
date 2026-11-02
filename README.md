@@ -1,10 +1,10 @@
 **English** · [繁體中文](README.zh-TW.md)
 
-# presence-demo
+# PresenceKit
 
 **Know when the person you are talking to has left.**
 
-presence-demo combines a camera and a microphone to tell a conversational device (a robot, a kiosk, a smart
+PresenceKit combines a camera and a microphone to tell a conversational device (a robot, a kiosk, a smart
 speaker with a camera) whether the person, or the group, it is talking to is still there. It is a small,
 explainable pipeline (face and body detection, tracking, an engagement score, a probabilistic presence model and
 a five-state machine) plus a web demo that shows every step live.
@@ -25,7 +25,7 @@ The waveforms illustrate the intended behavior; they are not recorded benchmark 
 ## Why
 
 "No speech for 20 seconds" is a poor way to end a conversation. People pause, look at their phone, or listen
-quietly while a friend talks, and a TV in the background never stops talking. presence-demo looks at **who is
+quietly while a friend talks, and a TV in the background never stops talking. PresenceKit looks at **who is
 actually there and engaged**, uses audio only where it helps, and writes down the reason for every decision.
 
 ## Features
@@ -42,7 +42,7 @@ actually there and engaged**, uses audio only where it helps, and writes down th
 - **Pose and distance (optional)**: MoveNet skeletons, orientation, and a calibrated distance estimate.
 - **Light enough for small devices**: motion gate, embedding throttling, adaptive fps and ROI cropping cut CPU by
   about 70%; TFLite / NPU embedding backend.
-- **Embeddable SDK on ONNX Runtime**: `presence_demo.sdk.PresenceEngine` (frames and VAD or audio in, state and
+- **Embeddable SDK on ONNX Runtime**: `presencekit.sdk.PresenceEngine` (frames and VAD or audio in, state and
   events out) with no web framework; every model runs on ONNX Runtime with selectable execution providers
   (CPU, CUDA, DirectML, CoreML, QNN, OpenVINO…).
 - **Private by default**: frames are processed in memory and never stored; face fingerprints are erased when a
@@ -54,10 +54,10 @@ actually there and engaged**, uses audio only where it helps, and writes down th
 Requires [uv](https://docs.astral.sh/uv/) and Python ≥ 3.10.
 
 ```bash
-git clone https://github.com/mcw519/presence-demo.git
-cd presence-demo
+git clone https://github.com/mcw519/presencekit.git
+cd presencekit
 uv sync
-uv run presence-demo            # open http://127.0.0.1:8000 and press Start
+uv run presencekit            # open http://127.0.0.1:8000 and press Start
 ```
 
 Browsers only allow the camera on `localhost` or HTTPS. Before exposing the server to others, set
@@ -71,10 +71,10 @@ uv sync --extra puresound
 uv run python scripts/fetch_puresound_model.py --clone
 ```
 
-Use it from your own code (no web server; `pip install presence-demo` is enough):
+Use it from your own code (no web server; `pip install presencekit` is enough):
 
 ```python
-from presence_demo.sdk import PresenceEngine
+from presencekit.sdk import PresenceEngine
 
 engine = PresenceEngine()
 step = engine.process_frame(bgr_frame, speaking=vad_flag)
@@ -114,8 +114,8 @@ The full index is in [docs/](docs/README.md). Highlights:
 ## Project layout
 
 ```
-presence_demo/     core logic, ONNX Runtime inference layer, SDK facade (sdk.py), FastAPI + WebSocket server
-presence_demo/static/  web UI (HTML, JS, string tables, vendored PureSound CSS)
+presencekit/     core logic, ONNX Runtime inference layer, SDK facade (sdk.py), FastAPI + WebSocket server
+presencekit/static/  web UI (HTML, JS, string tables, vendored PureSound CSS)
 scripts/           benchmark, evaluation, model export, figure and doc generators
 tests/             unit, scenario, WebSocket, privacy, UI and i18n tests
 docs/              documentation (English) and docs/zh-TW/ (Traditional Chinese)

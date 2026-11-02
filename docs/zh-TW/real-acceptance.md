@@ -25,10 +25,10 @@
 - server 綁定 loopback：
 
   ```bash
-  uv run presence-demo --host 127.0.0.1 --port 8000
+  uv run presencekit --host 127.0.0.1 --port 8000
   ```
 
-  這是 README 所列 `presence-demo` entry point 與 `server.main` 的正式參數；預設也是 `127.0.0.1:8000`。不要改綁 `0.0.0.0`。先確認 port 沒被其他 server 使用；若需更換 port，記錄實際命令與 URL。
+  這是 README 所列 `presencekit` entry point 與 `server.main` 的正式參數；預設也是 `127.0.0.1:8000`。不要改綁 `0.0.0.0`。先確認 port 沒被其他 server 使用；若需更換 port，記錄實際命令與 URL。
 - 使用 Chrome 開啟 `http://127.0.0.1:8000`，人工確認頁面顯示的版本符合本輪 repo。按「開始」時才由操作人核准瀏覽器相機與麥克風權限。
 - 準備匿名場景卡：參與者只用 `A`、`B`、`C`；記下操作時間點與預期，不記姓名、臉部描述、聲音特徵或原始 conversation/session/track ID。
 - 不錄製／匯出影片、臉部裁切、音訊、逐字稿、原始 `/debug/events` 或含識別碼的訊息。需要證據時只記匿名案例代碼、人工操作時間、通過／失敗／未執行、允許的數值摘要與錯誤類別。

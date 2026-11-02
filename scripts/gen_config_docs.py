@@ -2,7 +2,7 @@
 
 The tables come straight from the code, so they cannot drift:
 
-* defaults and ranges: ``presence_demo.config.Config`` / ``RANGES`` (server keys)
+* defaults and ranges: ``presencekit.config.Config`` / ``RANGES`` (server keys)
   and ``DEF`` in ``static/js/settings.js`` (browser-only keys);
 * module grouping, gates and "advanced" flags: ``MODULES`` in ``settings.js``;
 * labels and help text: the UI string tables ``static/i18n/<lang>.js``.
@@ -25,9 +25,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from presence_demo.config import RANGES, Config  # noqa: E402
+from presencekit.config import RANGES, Config  # noqa: E402
 
-STATIC = ROOT / "presence_demo" / "static"
+STATIC = ROOT / "presencekit" / "static"
 BEGIN = "<!-- BEGIN GENERATED: scripts/gen_config_docs.py -->"
 END = "<!-- END GENERATED -->"
 TARGETS = {"en": ROOT / "docs" / "configuration.md", "zh-TW": ROOT / "docs" / "zh-TW" / "configuration.md"}

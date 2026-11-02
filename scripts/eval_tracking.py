@@ -20,8 +20,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from presence_demo.body import Body  # noqa: E402
-from presence_demo.tracker import Config, Detection, PresenceTracker  # noqa: E402
+from presencekit.body import Body  # noqa: E402
+from presencekit.tracker import Config, Detection, PresenceTracker  # noqa: E402
 
 FACE_W, FACE_H = 0.08, 0.11
 VARIANTS = {

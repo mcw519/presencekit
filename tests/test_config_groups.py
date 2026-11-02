@@ -6,7 +6,7 @@ from dataclasses import asdict, fields
 
 import pytest
 
-from presence_demo.config import GROUPS, RANGES, Config, ConfigGroup, group_of
+from presencekit.config import GROUPS, RANGES, Config, ConfigGroup, group_of
 
 
 def test_every_field_is_in_exactly_one_group():

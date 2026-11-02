@@ -2,7 +2,7 @@
 
 # Architecture
 
-presence-demo is a Python package with a pure-logic core (no I/O, unit-testable with an injected clock) and a
+PresenceKit is a Python package with a pure-logic core (no I/O, unit-testable with an injected clock) and a
 FastAPI + WebSocket web demo around it. The browser captures camera and microphone and draws the UI; the server
 does all the analysis in memory.
 
@@ -11,7 +11,7 @@ does all the analysis in memory.
 ## Code layout
 
 ```
-presence_demo/
+presencekit/
   core/              pure logic (numpy only, no I/O): the presence engine
     types.py         typed values: Observation, VideoFrame, PresenceEvent, Step
     tracks.py        Detection, Track · geometry.py boxes/IoU · tracking.py association, Kalman, appearance

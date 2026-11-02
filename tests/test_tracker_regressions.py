@@ -4,8 +4,8 @@ import math
 
 import numpy as np
 
-from presence_demo.body import Body
-from presence_demo.tracker import Config, Detection, PresenceTracker, State
+from presencekit.body import Body
+from presencekit.tracker import Config, Detection, PresenceTracker, State
 
 
 class Clock:

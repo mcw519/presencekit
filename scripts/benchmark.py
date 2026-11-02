@@ -21,9 +21,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from presence_demo.optimizer import FrameProcessor, recommend_fps
-from presence_demo.tracker import Config, PresenceTracker
-from presence_demo.vision import VisionPipeline, decode_jpeg, load_pose_detector
+from presencekit.optimizer import FrameProcessor, recommend_fps
+from presencekit.tracker import Config, PresenceTracker
+from presencekit.vision import VisionPipeline, decode_jpeg, load_pose_detector
 
 FACE = Path(__file__).resolve().parent.parent / "tests" / "data" / "face.jpg"
 DURATION = 60.0
@@ -186,8 +186,8 @@ def backends_table(frames: int) -> None:
 
 def embed_micro(n: int = 200) -> None:
     """Model-only latency of each embedding model on an aligned 112x112 crop (no fallback logic)."""
-    from presence_demo.embed_backends import OpenCVSFace, OrtSFace, TFLiteSFace
-    from presence_demo.vision import MODEL_DIR, SFACE, SFACE_INT8, SFACE_TFLITE
+    from presencekit.embed_backends import OpenCVSFace, OrtSFace, TFLiteSFace
+    from presencekit.vision import MODEL_DIR, SFACE, SFACE_INT8, SFACE_TFLITE
 
     img = cv2.imread(str(FACE))
     crop = cv2.resize(img, (112, 112))
@@ -262,7 +262,7 @@ def ws_bench(frames: int, port: int) -> None:
             sys.executable,
             "-m",
             "uvicorn",
-            "presence_demo.server:app",
+            "presencekit.server:app",
             "--host",
             "127.0.0.1",
             "--port",

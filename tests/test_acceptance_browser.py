@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from presence_demo import acceptance_browser as browser
+from presencekit import acceptance_browser as browser
 
 
 def test_numeric_results_drop_payloads_and_secrets():

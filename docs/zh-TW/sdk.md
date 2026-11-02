@@ -2,16 +2,23 @@
 
 # SDK 與 ONNX Runtime
 
-從 v0.14 開始，偵測邏輯可以不透過網頁 demo 直接嵌入其他程式。`presence_demo.sdk.PresenceEngine` 接收鏡頭畫面（也可以加上
-音訊），回傳在場狀態和事件；所有神經網路模型都透過一個小小的推論層 `presence_demo.inference`，在
+從 v0.14 開始，偵測邏輯可以不透過網頁 demo 直接嵌入其他程式。`presencekit.sdk.PresenceEngine` 接收鏡頭畫面（也可以加上
+音訊），回傳在場狀態和事件；所有神經網路模型都透過一個小小的推論層 `presencekit.inference`，在
 [ONNX Runtime](https://onnxruntime.ai) 上執行。
+
+## 從 presence-demo 遷移
+
+發行套件、Python package 與 CLI 現在統一為 `presencekit`。將 `from presence_demo...` 改成
+`from presencekit...`，網頁 demo 改用 `uv run presencekit` 啟動。在原始碼目錄重新執行 `uv sync`，
+即可安裝更名後的套件。既有的 `PRESENCE_*` 環境變數與瀏覽器設定仍可使用。
+若新的快取目錄尚不存在，會沿用舊的 `~/.cache/presence-demo/models`，避免重複下載模型。
 
 ## 安裝
 
 ```bash
-pip install presence-demo                 # SDK：numpy、OpenCV（影像處理）、onnxruntime、psutil
-pip install "presence-demo[web]"          # 再加上 FastAPI 網頁 demo（presence-demo 指令）
-pip install "presence-demo[litert]"       # 再加上 LiteRT：MoveNet TFLite 備援、SFace TFLite／NPU delegate 後端
+pip install presencekit                 # SDK：numpy、OpenCV（影像處理）、onnxruntime、psutil
+pip install "presencekit[web]"          # 再加上 FastAPI 網頁 demo（presencekit 指令）
+pip install "presencekit[litert]"       # 再加上 LiteRT：MoveNet TFLite 備援、SFace TFLite／NPU delegate 後端
 uv sync                                   # 開發：SDK + web + litert + 測試工具
 ```
 
@@ -21,7 +28,7 @@ uv sync                                   # 開發：SDK + web + litert + 測試
 ## 使用方式
 
 ```python
-from presence_demo.sdk import PresenceEngine
+from presencekit.sdk import PresenceEngine
 
 engine = PresenceEngine()  # YuNet + SFace 跑在 ONNX Runtime，第一次使用時下載
 while running:
@@ -48,14 +55,14 @@ while running:
   鏡頭／麥克風串流。同一個程序裡的多個引擎共用模型 session（ONNX Runtime 的 `run` 是 thread-safe），但不共用狀態。
 - 時間來自 `clock`（預設 `time.monotonic`）。重播或測試時可以給虛擬時鐘：`PresenceEngine(clock=lambda: t)`。
 - `PresenceEngine(pipeline=VisionPipeline(detector=..., embedder=...))` 可以換成自己的偵測器或 embedder（protocol 見
-  `presence_demo.detectors`）；`pose=False` 關閉姿勢模型，`pose=my_detector` 換成自己的。
-- 匯入 `presence_demo.sdk` 不會載入網頁框架、不會開執行緒、不會讀模型（由 `tests/test_sdk.py` 和
+  `presencekit.detectors`）；`pose=False` 關閉姿勢模型，`pose=my_detector` 換成自己的。
+- 匯入 `presencekit.sdk` 不會載入網頁框架、不會開執行緒、不會讀模型（由 `tests/test_sdk.py` 和
   `tests/test_layering.py` 檢查）。
 
 ## ONNX Runtime 選項
 
 ```python
-from presence_demo.inference import OrtOptions
+from presencekit.inference import OrtOptions
 
 engine = PresenceEngine(ort=OrtOptions(providers=("coreml", "cpu"), intra_op_threads=4))
 ```
@@ -82,8 +89,8 @@ PureSound 音訊模型一律用 CPU 提供者（10 ms 的音框用加速器沒�
 
 ## 模型
 
-所有模型檔都登記在同一份目錄 `presence_demo.inference.CATALOG`，由 `ModelStore` 存放：依序是 `ModelStore(root)`、
-`$PRESENCE_MODEL_DIR`、原始碼目錄下的 `models/`、`~/.cache/presence-demo/models`（或 `$XDG_CACHE_HOME`）。下載的檔案
+所有模型檔都登記在同一份目錄 `presencekit.inference.CATALOG`，由 `ModelStore` 存放：依序是 `ModelStore(root)`、
+`$PRESENCE_MODEL_DIR`、原始碼目錄下的 `models/`、`~/.cache/presencekit/models`（或 `$XDG_CACHE_HOME`）。下載的檔案
 會用 sha256 驗證，並以原子方式寫入。
 
 | Key | 檔案 | 執行環境 | 取得方式 |
@@ -111,7 +118,7 @@ MoveNet 沒有官方的 ONNX 版本。匯出腳本用 tf2onnx 轉換 TFLite 檔�
 1. 為目標平台安裝對應的 ONNX Runtime 套件（CPU、GPU 或 NPU 版本），並設定 `providers`。
 2. 打包模型檔（`ModelStore.status()` 列出哪些已存在），用 `PRESENCE_MODEL_DIR` 或 `ModelStore(root)` 指向它們；沒有網路
    的裝置請用 `allow_download=False`。
-3. 以 0.5–2 fps 把不鏡像的 BGR 畫面送進 `process_frame`（`presence_demo.optimizer.recommend_fps` 提供網頁 demo 使用的
+3. 以 0.5–2 fps 把不鏡像的 BGR 畫面送進 `process_frame`（`presencekit.optimizer.recommend_fps` 提供網頁 demo 使用的
    自適應頻率），再加上你的 VAD；或把 16 kHz PCM16 送進 `process_audio`。
 4. 讀取 `step.events`／`step.snapshot`；`engine.info()` 顯示每個模型實際跑在哪個提供者上。
 

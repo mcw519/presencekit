@@ -6,7 +6,7 @@ A conversational device (a robot, a kiosk, a smart speaker with a camera) needs 
 over. "Nobody said anything for 20 seconds" is a poor answer: people pause, think, look at their phone, or stand
 quietly while someone else talks. And a TV in the background "talks" all the time.
 
-presence-demo combines **what the camera sees** with **what the microphone hears** and keeps a small, explainable
+PresenceKit combines **what the camera sees** with **what the microphone hears** and keeps a small, explainable
 state machine. Every decision comes with a written reason in the event log.
 
 ## The pipeline at a glance

@@ -10,10 +10,10 @@ import cv2
 import numpy as np
 import pytest
 
-from presence_demo import audio
-from presence_demo.config import Config, State
-from presence_demo.sdk import PresenceEngine
-from presence_demo.vision import VisionPipeline
+from presencekit import audio
+from presencekit.config import Config, State
+from presencekit.sdk import PresenceEngine
+from presencekit.vision import VisionPipeline
 
 FACE = Path(__file__).parent / "data" / "face.jpg"
 
@@ -40,9 +40,9 @@ def engine(pipe, **kw):
 
 def test_import_loads_no_web_framework_and_starts_no_thread():
     code = (
-        "import sys, threading; import presence_demo.sdk; "
+        "import sys, threading; import presencekit.sdk; "
         "bad = sorted(m for m in sys.modules if m.split('.')[0] in ('fastapi', 'starlette', 'uvicorn', 'psutil') "
-        "or m.startswith(('presence_demo.web', 'presence_demo.server', 'presence_demo.runtime'))); "
+        "or m.startswith(('presencekit.web', 'presencekit.server', 'presencekit.runtime'))); "
         "print(repr((bad, threading.active_count())))"
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=True).stdout.strip()

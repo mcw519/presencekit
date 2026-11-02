@@ -1,7 +1,7 @@
 """Copy the PureSound voice-isolation model (dpcrn_curriculum_v2: per-frame ONNX + manifest) into models/.
 
 The model lives in the PureSound repository (https://github.com/mcw519/puresound, public, Apache-2.0),
-under ``egs/voice_isolate/pretrained_ckpt/streaming/``. presence-demo never installs PureSound at runtime;
+under ``egs/voice_isolate/pretrained_ckpt/streaming/``. presencekit never installs PureSound at runtime;
 this script only copies the two files and verifies their sha256 (models/ is gitignored, nothing is committed).
 
     # from an existing clone
@@ -23,8 +23,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from presence_demo.audio import PURESOUND_FILES, PURESOUND_SUBDIR  # noqa: E402
-from presence_demo.inference import default_root  # noqa: E402
+from presencekit.audio import PURESOUND_FILES, PURESOUND_SUBDIR  # noqa: E402
+from presencekit.inference import default_root  # noqa: E402
 
 REPO = "https://github.com/mcw519/puresound.git"
 

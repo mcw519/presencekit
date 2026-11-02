@@ -21,7 +21,7 @@
 | **MoveNet MultiPose Lightning**（`movenet_multipose_lightning_fp16.tflite`；`movenet_multipose_lightning.onnx` 由 `scripts/export_movenet_onnx.py` 在本機匯出，不散布） | Apache-2.0 | [Kaggle 模型頁](https://www.kaggle.com/models/google/movenet) | ✅ | Google 官方釋出。模型卡把監控和身分辨識列為非預期用途；本專案只用來判斷有沒有人、朝向和距離。對話距離下的準確度請自行驗證。 |
 | **PureSound `dpcrn_curriculum_v2`**（串流 ONNX + manifest，`audio_pipeline=puresound`） | Apache-2.0（Copyright 2026 Milo Wu and PureSound contributors；程式碼、SDK、設定、文件和權重） | [PureSound](https://github.com/mcw519/puresound)，固定 commit；由 `scripts/fetch_puresound_model.py` 檢查 sha256 | ⚠️ 權重可以，**資料集待確認** | PureSound 的 NOTICE 說明資料集和錄音*不在* Apache-2.0 範圍內。常見的語音增強語料各有條款（部分只限研究），商用前請確認實際使用的訓練資料。不放進 git。 |
 | Haar cascade（備援，OpenCV 內附） | Intel License Agreement（BSD 類，寫在 XML 檔頭） | `cv2/data/` | ✅ | 只在沒有 YuNet 時使用。 |
-| HSV 直方圖「embedding」（備援） | 本專案程式碼，沒有權重 | `presence_demo/vision.py` | ✅ | 沒有訓練資料問題，但辨識力弱（主要靠衣服顏色）。 |
+| HSV 直方圖「embedding」（備援） | 本專案程式碼，沒有權重 | `presencekit/vision.py` | ✅ | 沒有訓練資料問題，但辨識力弱（主要靠衣服顏色）。 |
 | ~~YOLOv8n-pose~~（v0.3.0） | AGPL-3.0 | Ultralytics | ❌ 已移除 | AGPL 也涵蓋網路服務。v0.4.0 已移除。 |
 
 ## 雲端服務（選用，預設關閉）
@@ -63,7 +63,7 @@ NPU 執行環境：NNAPI 是 Android 的一部分（AOSP，Apache-2.0）。廠�
 
 | 元件 | 授權 | 來源 | 說明 |
 |---|---|---|---|
-| PureSound 網頁設計系統（`tokens.css`、`base.css`、`components.css`、`shell.css`、`screens-shared.css`） | Apache-2.0（Copyright 2026 Milo Wu and PureSound contributors） | [PureSound](https://github.com/mcw519/puresound) `puresound/web/static/css`，固定 revision | 放在 `presence_demo/static/vendor/puresound/`，附 LICENSE 和 NOTICE；只把字型網址改成相對路徑。 |
+| PureSound 網頁設計系統（`tokens.css`、`base.css`、`components.css`、`shell.css`、`screens-shared.css`） | Apache-2.0（Copyright 2026 Milo Wu and PureSound contributors） | [PureSound](https://github.com/mcw519/puresound) `puresound/web/static/css`，固定 revision | 放在 `presencekit/static/vendor/puresound/`，附 LICENSE 和 NOTICE；只把字型網址改成相對路徑。 |
 | IBM Plex Sans / Mono（woff2，latin 子集） | SIL Open Font License 1.1 | 同上 `fonts/` | 附 `fonts/LICENSE.txt`；OFL 允許隨軟體散布，不可單獨販售字型。 |
 
 ## 測試資料

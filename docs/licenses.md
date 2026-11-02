@@ -22,7 +22,7 @@ weights and third-party packages are **not** covered by that license; their term
 | **MoveNet MultiPose Lightning** (`movenet_multipose_lightning_fp16.tflite`; `movenet_multipose_lightning.onnx` exported locally by `scripts/export_movenet_onnx.py`, not distributed) | Apache-2.0 | [Kaggle model page](https://www.kaggle.com/models/google/movenet) | ✅ | Released by Google. The model card lists surveillance and identification as out of scope; this project uses it only for presence, orientation and distance. Validate accuracy for conversation distances yourself. |
 | **PureSound `dpcrn_curriculum_v2`** (streaming ONNX + manifest, `audio_pipeline=puresound`) | Apache-2.0 (Copyright 2026 Milo Wu and PureSound contributors; code, SDK, configs, docs and weights) | [PureSound](https://github.com/mcw519/puresound), pinned commit; sha256 checked by `scripts/fetch_puresound_model.py` | ⚠️ weights yes, **datasets to be checked** | PureSound's NOTICE states that datasets and recordings are *not* covered by Apache-2.0. Typical speech-enhancement corpora have their own terms (some research-only); confirm the actual training data before commercial use. Not in git. |
 | Haar cascade (fallback, shipped with OpenCV) | Intel License Agreement (BSD-like, in the XML header) | `cv2/data/` | ✅ | Used only when YuNet is unavailable. |
-| HSV histogram "embedding" (fallback) | This project's code, no weights | `presence_demo/vision.py` | ✅ | No training data at all, but weak (mostly clothing colour). |
+| HSV histogram "embedding" (fallback) | This project's code, no weights | `presencekit/vision.py` | ✅ | No training data at all, but weak (mostly clothing colour). |
 | ~~YOLOv8n-pose~~ (v0.3.0) | AGPL-3.0 | Ultralytics | ❌ removed | AGPL also covers network services. Removed in v0.4.0. |
 
 ## Cloud services (optional, off by default)
@@ -65,7 +65,7 @@ their terms with the chip vendor.
 
 | Component | License | Source | Notes |
 |---|---|---|---|
-| PureSound web design system (`tokens.css`, `base.css`, `components.css`, `shell.css`, `screens-shared.css`) | Apache-2.0 (Copyright 2026 Milo Wu and PureSound contributors) | [PureSound](https://github.com/mcw519/puresound) `puresound/web/static/css`, pinned revision | In `presence_demo/static/vendor/puresound/` with LICENSE and NOTICE; only font URLs made relative. |
+| PureSound web design system (`tokens.css`, `base.css`, `components.css`, `shell.css`, `screens-shared.css`) | Apache-2.0 (Copyright 2026 Milo Wu and PureSound contributors) | [PureSound](https://github.com/mcw519/puresound) `puresound/web/static/css`, pinned revision | In `presencekit/static/vendor/puresound/` with LICENSE and NOTICE; only font URLs made relative. |
 | IBM Plex Sans / Mono (woff2, latin subset) | SIL Open Font License 1.1 | same, `fonts/` | `fonts/LICENSE.txt` included; OFL allows bundling, not selling the fonts alone. |
 
 ## Test data

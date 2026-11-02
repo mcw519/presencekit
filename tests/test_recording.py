@@ -9,9 +9,9 @@ import numpy as np
 import pytest
 from sources import server_source, ui_source
 
-from presence_demo import audio
-from presence_demo.audio import AudioStream
-from presence_demo.tracker import Config
+from presencekit import audio
+from presencekit.audio import AudioStream
+from presencekit.tracker import Config
 
 OK, WHY = audio.puresound_available()
 needs_ps = pytest.mark.skipif(not OK, reason=WHY)
@@ -56,7 +56,7 @@ def test_ws_record_streams_three_tracks_and_writes_no_files(tmp_path, monkeypatc
     monkeypatch.setenv("TMPDIR", str(priv))
     from fastapi.testclient import TestClient
 
-    from presence_demo import server
+    from presencekit import server
 
     def snap(d):
         out = {}

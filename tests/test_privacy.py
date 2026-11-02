@@ -12,7 +12,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
-from presence_demo import server
+from presencekit import server
 
 FACE = Path(__file__).parent / "data" / "face.jpg"
 

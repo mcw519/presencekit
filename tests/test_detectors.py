@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from presence_demo import detectors, embed_backends, vision
+from presencekit import detectors, embed_backends, vision
 
 
 def test_vision_reexports_the_detector_layer_objects():

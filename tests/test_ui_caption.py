@@ -5,7 +5,7 @@ from pathlib import Path
 
 from sources import ui_source
 
-ROOT = Path(__file__).parents[1] / "presence_demo" / "static"
+ROOT = Path(__file__).parents[1] / "presencekit" / "static"
 HTML = ui_source()
 CSS = (ROOT / "app.css").read_text(encoding="utf-8")
 

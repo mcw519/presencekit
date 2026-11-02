@@ -10,7 +10,7 @@ code are all welcome. By taking part you agree to the [Code of Conduct](CODE_OF_
 ```bash
 uv sync                          # runtime + dev dependencies (pytest, httpx, ruff, websockets)
 uv sync --extra puresound        # optional: PureSound audio pipeline (Python ≥ 3.12)
-uv run presence-demo --port 8000
+uv run presencekit --port 8000
 ```
 
 ## Before you open a pull request
@@ -41,14 +41,14 @@ Tests are grouped by topic, not by version:
 - The core (`tracker.py`, `kalman.py`, `presence_model.py`, `intent.py`, …) stays pure logic: no I/O, an injectable
   clock, unit-testable.
 - The web UI uses plain scripts, no build step and no third-party JS. Use PureSound component classes; never edit
-  `presence_demo/static/vendor/puresound/` and do not redefine upstream components or tokens in `app.css`
+  `presencekit/static/vendor/puresound/` and do not redefine upstream components or tokens in `app.css`
   (see [docs/ui.md](docs/ui.md)).
 
 ## Adding a parameter
 
-1. Add the field to `Config` and its range to `RANGES` in `presence_demo/config.py`
+1. Add the field to `Config` and its range to `RANGES` in `presencekit/config.py`
    (`test_ranges_cover_all_fields` checks this).
-2. Add the default to `DEF` and the key to a module in `MODULES` (`presence_demo/static/js/settings.js`); add
+2. Add the default to `DEF` and the key to a module in `MODULES` (`presencekit/static/js/settings.js`); add
    `META` only for structure (range, step, options).
 3. Add the label `s.<key>`, help `s.<key>.h` and option names `s.<key>.o.<value>` to **both**
    `static/i18n/en.js` and `static/i18n/zh-TW.js` (`test_i18n.py` checks this).

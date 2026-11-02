@@ -31,9 +31,9 @@ def main():
     import cv2
     import numpy as np
 
-    from presence_demo.config import Config
-    from presence_demo.optimizer import FrameProcessor
-    from presence_demo.vision import VisionPipeline, load_pose_detector
+    from presencekit.config import Config
+    from presencekit.optimizer import FrameProcessor
+    from presencekit.vision import VisionPipeline, load_pose_detector
 
     if args.frames < 2 or args.repeat < 1:
         ap.error("--frames must be >= 2 and --repeat >= 1")

@@ -3,7 +3,7 @@ import math
 import numpy as np
 import pytest
 
-from presence_demo.body import (
+from presencekit.body import (
     Body,
     associate,
     calibration_factor,
@@ -12,9 +12,9 @@ from presence_demo.body import (
     orientation,
     width_to_distance,
 )
-from presence_demo.optimizer import fuse
-from presence_demo.server import calibrate
-from presence_demo.tracker import Config, Detection, PresenceTracker, State
+from presencekit.optimizer import fuse
+from presencekit.server import calibrate
+from presencekit.tracker import Config, Detection, PresenceTracker, State
 
 
 class Clock:

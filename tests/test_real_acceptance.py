@@ -7,8 +7,8 @@ import sys
 
 import pytest
 
-from presence_demo import real_acceptance as real
-from presence_demo.config import Config
+from presencekit import real_acceptance as real
+from presencekit.config import Config
 
 
 def test_profile_is_config_valid_and_cloud_off():
@@ -97,10 +97,10 @@ import importlib.abc, sys
 class Block(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, *args):
         if fullname.split('.')[0] in {'cv2','numpy','onnxruntime','puresound_streaming'} or fullname in {
-            'presence_demo.config', 'presence_demo.tracker', 'presence_demo.reid'}:
+            'presencekit.config', 'presencekit.tracker', 'presencekit.reid'}:
             raise AssertionError('forbidden import: ' + fullname)
 sys.meta_path.insert(0, Block())
-from presence_demo.real_acceptance import main
+from presencekit.real_acceptance import main
 main(['--help'])
 """
     result = subprocess.run([sys.executable, "-c", code], cwd=real.ROOT, capture_output=True, text=True)
@@ -114,7 +114,7 @@ def test_import_profile_against_actual_ui(tmp_path):
 
     if not shutil.which("node"):
         pytest.skip("node unavailable")
-    settings = (real.ROOT / "presence_demo/static/js/settings.js").read_text()
+    settings = (real.ROOT / "presencekit/static/js/settings.js").read_text()
     start = settings.index("const DEF=")
     end = settings.index("const REC=")
     # DEF/META are declarations only; the helper is copied from its literal declaration.
