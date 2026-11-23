@@ -96,6 +96,8 @@ def load_pose_detector(allow_download: bool = True, options: OrtOptions | None =
 
 def decode_jpeg(data: bytes) -> tuple[np.ndarray | None, float]:
     """Decode JPEG bytes in memory (PRIVACY: never written to disk). Returns (image, ms)."""
+    if not data:
+        return None, 0.0
     t0 = time.perf_counter()
     img = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     return img, (time.perf_counter() - t0) * 1000

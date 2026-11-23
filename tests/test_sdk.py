@@ -5,6 +5,7 @@ from __future__ import annotations
 import subprocess
 import sys
 from pathlib import Path
+from unittest.mock import Mock
 
 import cv2
 import numpy as np
@@ -71,6 +72,7 @@ def test_set_speaking_reset_and_jpeg_input(pipe):
     ok, jpg = cv2.imencode(".jpg", frame())
     assert ok and eng.process_jpeg(jpg.tobytes()) is not None
     assert eng.process_jpeg(b"not a jpeg") is None
+    assert eng.process_jpeg(b"") is None
     assert eng.set_speaking(True).snapshot["speaking"] is True
     eng.reset()
     assert eng.snapshot()["tracks"] == [] and eng.snapshot()["speaking"] is False
@@ -114,3 +116,31 @@ def test_process_audio_needs_the_puresound_pipeline(pipe):
         total += len(out)
         assert step is None  # silence never changes the speech decision
     assert total > 0 and eng.info()["audio"] == "puresound"
+
+
+def test_switching_to_host_vad_discards_puresound_state(pipe, monkeypatch):
+    stream = Mock()
+    stream.process.return_value = (b"", True)
+    new_stream = Mock()
+    new_stream.process.return_value = (b"", False)
+    factory = Mock(side_effect=[stream, new_stream])
+    monkeypatch.setattr(audio, "puresound_available", lambda: (True, "ok"))
+    monkeypatch.setattr(audio, "AudioStream", factory)
+    eng, _ = engine(pipe, config=Config(audio_pipeline="puresound"))
+    image = frame()
+
+    eng.process_audio(bytes(640))
+    assert eng.snapshot()["speaking"] is True
+    assert eng.configure({"audio_pipeline": "invalid"})
+    assert eng.process_frame(image, speaking=False).snapshot["speaking"] is True
+
+    assert eng.configure({"audio_pipeline": "energy_vad"}) == []
+    assert eng.info()["audio"] is None
+    assert eng.process_frame(image).snapshot["speaking"] is False
+    assert eng.process_frame(image, speaking=True).snapshot["speaking"] is True
+    assert eng.process_frame(image, speaking=False).snapshot["speaking"] is False
+
+    eng.configure({"audio_pipeline": "puresound"})
+    eng.process_audio(bytes(640))
+    assert factory.call_count == 2
+    assert eng.process_frame(image, speaking=True).snapshot["speaking"] is False
