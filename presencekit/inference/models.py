@@ -173,7 +173,7 @@ class ModelStore:
         """The file when present (and, with a known sha256, verified once); never touches the network."""
         spec = self.spec(model)
         p = self.root / spec.filename
-        if not p.exists() or p.stat().st_size < MIN_BYTES:
+        if not p.is_file() or p.stat().st_size < MIN_BYTES:
             return None
         if spec.sha256 and p not in self._verified:
             if sha256_file(p) != spec.sha256:
