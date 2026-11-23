@@ -1,6 +1,7 @@
 """Cross-session re-ID: mock Jev server; decisions, caps, TTL/wipe, privacy."""
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -44,10 +45,18 @@ class Mock:
 
                     time.sleep(1.0)
                     s = 0.99
+                if isinstance(s, list):
+                    answers = dict(
+                        reversed([(q, {"noul": score}) for q, score in zip(body["questions"], s, strict=True)])
+                    )
+                elif isinstance(s, dict):
+                    answers = s
+                else:
+                    answers = {"same": {"type": "noul", "noul": s}}
                 out = json.dumps(
                     {
-                        "model": "jev-1.13.0",
-                        "answers": {"same": {"type": "noul", "noul": s}},
+                        "model": body["model"],
+                        "answers": answers,
                         "usage": {"input_tokens": 950},
                     }
                 ).encode()
@@ -130,6 +139,55 @@ def test_off_by_default_and_needs_consent(mock):
     c.update({"reid_enabled": True})
     assert r.observe(snap(2)) == []  # no consent -> nothing
     assert mock.reqs == []
+
+
+@pytest.mark.parametrize("batch", [False, True])
+@pytest.mark.parametrize("value", ["NaN", float("nan"), float("inf"), -0.01, 1.01, True, None, 10**400])
+def test_jev_rejects_invalid_scores(monkeypatch, batch, value):
+    client = reid.JevClient(key_fn=lambda: SECRET)
+    answers = {"same_0": {"noul": 0.99}, "same_1": {"noul": value}} if batch else {"same": {"noul": value}}
+    monkeypatch.setattr(client, "_post", lambda *_: {"answers": answers})
+    with pytest.raises(reid.ReidError, match="bad_response"):
+        if batch:
+            run(client.compare_batch([b"ref-a", b"ref-b"], b"query", model="jev-1.14.0", timeout=1))
+        else:
+            run(client.compare(b"ref-a", b"query", model="jev-latest", timeout=1))
+
+
+@pytest.mark.parametrize(
+    "second_answer,decision,reason",
+    [
+        ([0.0, 0.0], "resume", "match"),
+        ([0.99, 0.0], "new", "ambiguous"),
+        ({"same_0": {"noul": 0.0}}, "new", "error"),
+    ],
+)
+def test_jev_batch_compares_all_queries_before_deciding(mock, second_answer, decision, reason):
+    async def go():
+        driver, out, events, clk = make(mock.url, reid_model="jev-1.14.0", reid_batch=True, reid_show_crops=False)
+        driver.store.add(reid.Ref(1, "A", b"face-a", clk(), "alice"), 3)
+        driver.store.add(reid.Ref(2, "B", b"face-b", clk(), "bob"), 3)
+        mock.scores = [[0.0, 0.95], second_answer]
+        await drive(driver, snap(3, tracks=[face(), face(id=2)]), clk)
+        assert out[-1]["decision"] == decision and out[-1]["reason"] == reason
+        assert out[-1]["conversation_id"] == ("A" if decision == "resume" else out[-1]["previous_conversation_id"])
+        assert out[-1]["resumed_from_session"] == (1 if decision == "resume" else None)
+        assert driver.calls == len(mock.reqs) == 2
+        assert driver.tokens == (950 if reason == "error" else 1900)
+        assert all(event["comparisons"] == 2 for name, event in events if name == "reid_call")
+        for tid, recorded in enumerate(mock.reqs, 1):
+            body = recorded["body"]
+            assert body["model"] == "jev-1.14.0" and len(body["assets"]) == 3
+            images = {name: base64.b64decode(body["assets"][ref]["data_base64"]) for name, ref in body["state"].items()}
+            assert images == {
+                "query": f"JPEG-query:3:{driver.epoch}:{tid}".encode(),
+                "reference_0": b"face-b",
+                "reference_1": b"face-a",
+            }
+            assert all(f"`reference_{i}`" in body["questions"][f"same_{i}"]["instructions"] for i in range(2))
+        driver.close()
+
+    run(go())
 
 
 def test_first_session_is_new_without_call(mock):

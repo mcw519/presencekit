@@ -6,7 +6,7 @@ const DEF={face_roi:[0.2,0.05,0.8,0.95],mirror_view:true,show_face_roi:true,pose
  distance_calib:1,distance_ema:0.3,zone_min:0.4,zone_max:2,leave_distance:2.5,min_conf:0.4,embed_backend:'fp32',npu_precision:'int8',cos_match_int8:0.4,cos_match:0.4,cos_weak:0.2,iou_match:0.3,embed_ema:0.15,join_seconds:2,grace_seconds:15,
  present_frames:2,absent_frames:3,idle_after:3,present_timeout:15,empty_timeout:5,base_timeout:20,maybe_away_frac:0.5,end_after_away:5,new_group_seconds:3,
  priority_mode:'vision',speech_join:'auto',presence_model:'rules',intent_model:'rules',intent_tau:1,join_threshold:0.6,drop_threshold:0.35,drop_seconds:8,intent_weighted_presence:false,w_facing:0.45,w_distance:0.1,w_dwell:0.1,w_approach:0.05,w_still:0.15,w_center:0.15,leave_halflife:1.5,detect_gain:4,lowconf_factor:0.15,p_active:0.8,p_maybe:0.6,p_away:0.3,away_hold_seconds:1,tracker_mode:'legacy',coast_seconds:2,coast_present_conf:0.4,gate_mahalanobis:9.21,appearance_min_sim:0.6,appearance_ema:0.2,body_min_conf:0.4,present_max_silence:0,motion_gate:true,motion_threshold:0.015,force_detect_seconds:2,embed_throttle:true,embed_interval:3,embed_move_thresh:0.15,adaptive_fps:true,fps_low:0.5,fps_high:2,roi_crop:true,crop_margin:0.1,max_width:640,fps:1,vad_k:2.5,vad_min:0.005,vad_hang:400,
- audio_pipeline:'energy_vad',iso_onset_guard:false,iso_reset_on_change:true,onset_needs_vision:true,onset_entry_only:true,clean_vad_margin_db:10,clean_vad_min_db:-50,clean_vad_hang:0.3,xcheck_enabled:true,near_range:1,xcheck_hold:0.75,xcheck_stale:2,xcheck_require_calib:false,xcheck_floor_db:-40,xcheck_recover_mix:0.3,xcheck_attack:0.01,xcheck_release:0.05,asr_provider:'none',asr_source:'clean',asr_feed:'speech',asr_region:'global',asr_speech_model:'universal-3-6-pro',asr_language_codes:'zh,en',asr_keyterms:'',asr_format_turns:true,asr_eot_confidence:0.4,asr_min_turn_silence:400,asr_max_turn_silence:1280,reid_enabled:false,reid_consent:false,reid_show_crops:true,reid_provider:'jev',reid_model:'jev-latest',reid_threshold:0.9,reid_uncertain_low:0.4,reid_ttl:600,reid_max_refs:3,reid_min_face:0.06,reid_decision_timeout:10,reid_face_wait:3,reid_timeout:2,reid_cooldown:5,reid_cap_per_hour:30,reid_cap_total:200,reid_cost_per_call:0,monitor:'off'};
+ audio_pipeline:'energy_vad',iso_onset_guard:false,iso_reset_on_change:true,onset_needs_vision:true,onset_entry_only:true,clean_vad_margin_db:10,clean_vad_min_db:-50,clean_vad_hang:0.3,xcheck_enabled:true,near_range:1,xcheck_hold:0.75,xcheck_stale:2,xcheck_require_calib:false,xcheck_floor_db:-40,xcheck_recover_mix:0.3,xcheck_attack:0.01,xcheck_release:0.05,asr_provider:'none',asr_source:'clean',asr_feed:'speech',asr_region:'global',asr_speech_model:'universal-3-6-pro',asr_language_codes:'zh,en',asr_keyterms:'',asr_format_turns:true,asr_eot_confidence:0.4,asr_min_turn_silence:400,asr_max_turn_silence:1280,reid_enabled:false,reid_consent:false,reid_show_crops:true,reid_provider:'jev',reid_model:'jev-latest',reid_batch:false,reid_threshold:0.9,reid_uncertain_low:0.4,reid_ttl:600,reid_max_refs:3,reid_min_face:0.06,reid_decision_timeout:10,reid_face_wait:3,reid_timeout:2,reid_cooldown:5,reid_cap_per_hour:30,reid_cap_total:200,reid_cost_per_call:0,monitor:'off'};
 const CLIENT=['monitor','mirror_view','fps','vad_k','vad_min','vad_hang','show_face_roi','show_pose_roi'];
 const BOXES=['face_roi','pose_roi'];
 // Setting metadata (range/step/unit/options). Labels, help text and option names come from the string tables
@@ -130,7 +130,8 @@ const META={
  reid_consent:{bool:true},
  reid_show_crops:{bool:true},
  reid_provider:{opts:{jev:1}},
- reid_model:{opts:{"jev-latest":1,"jev-1.13.0":1}},
+ reid_model:{opts:{"jev-latest":1,"jev-1.13.0":1,"jev-1.14.0":1}},
+ reid_batch:{bool:true},
  reid_threshold:{min:0.5,max:0.99,step:0.01},
  reid_uncertain_low:{min:0,max:0.95,step:0.05},
  reid_ttl:{min:30,max:600,step:30,u:"s"},
@@ -200,8 +201,8 @@ const MODULES=[
    asr_language_codes:{show:c=>c.asr_provider==='assemblyai'&&c.asr_speech_model.endsWith('-pro')},
    asr_format_turns:{show:c=>c.asr_provider==='assemblyai'&&c.asr_speech_model.startsWith('universal-streaming')},asr_eot_confidence:{show:c=>c.asr_provider==='assemblyai'&&c.asr_speech_model.startsWith('universal-streaming')}},
   gateNeed:[PS,'need.asr_ps'],status:c=>c.asr_provider==='none'?t('st.off'):(PS(c)?'AssemblyAI':t('st.asr_needs_ps'))},
- {id:'reid',gate:'reid_enabled',keys:['reid_consent','reid_show_crops','reid_provider','reid_model','reid_threshold','reid_uncertain_low','reid_ttl','reid_max_refs','reid_min_face','reid_face_wait','reid_decision_timeout','reid_timeout','reid_cooldown','reid_cap_per_hour','reid_cap_total','reid_cost_per_call'],
-  adv:['reid_provider','reid_uncertain_low','reid_min_face','reid_face_wait','reid_decision_timeout','reid_timeout','reid_cooldown','reid_cap_total'],rules:{},
+ {id:'reid',gate:'reid_enabled',keys:['reid_consent','reid_show_crops','reid_provider','reid_model','reid_batch','reid_threshold','reid_uncertain_low','reid_ttl','reid_max_refs','reid_min_face','reid_face_wait','reid_decision_timeout','reid_timeout','reid_cooldown','reid_cap_per_hour','reid_cap_total','reid_cost_per_call'],
+  adv:['reid_provider','reid_batch','reid_uncertain_low','reid_min_face','reid_face_wait','reid_decision_timeout','reid_timeout','reid_cooldown','reid_cap_total'],rules:{},
   status:c=>!c.reid_enabled?t('st.off'):c.reid_consent?t('st.on'):t('st.no_consent')},
  {id:'perf',keys:['motion_gate','motion_threshold','force_detect_seconds','embed_throttle','embed_interval','embed_move_thresh','adaptive_fps','fps_low','fps_high','roi_crop','crop_margin','max_width'],
   adv:['motion_threshold','force_detect_seconds','embed_interval','embed_move_thresh','crop_margin'],

@@ -150,6 +150,7 @@ class Config:
     reid_show_crops: bool = True  # send small display thumbnails of the compared faces to this browser only
     reid_provider: str = "jev"
     reid_model: str = "jev-latest"
+    reid_batch: bool = False  # one HTTP request per current face with all eligible references
     reid_threshold: float = 0.9  # >= -> same person -> resume the previous conversation
     reid_uncertain_low: float = 0.4  # [low, threshold): one more frame, else new conversation
     reid_ttl: float = 600.0  # history retention since last normal ENDED (memory only)
@@ -374,7 +375,8 @@ RANGES = {
     "reid_consent": (False, True, bool),
     "reid_show_crops": (False, True, bool),
     "reid_provider": (("jev",), None, str),
-    "reid_model": (("jev-latest", "jev-1.13.0"), None, str),
+    "reid_model": (("jev-latest", "jev-1.13.0", "jev-1.14.0"), None, str),
+    "reid_batch": (False, True, bool),
     "reid_threshold": (0.5, 0.99, float),
     "reid_uncertain_low": (0.0, 0.95, float),
     "reid_ttl": (30.0, 600.0, float),
@@ -524,6 +526,7 @@ GROUPS: dict[str, tuple[str, ...]] = {
         "reid_show_crops",
         "reid_provider",
         "reid_model",
+        "reid_batch",
         "reid_threshold",
         "reid_uncertain_low",
         "reid_ttl",
