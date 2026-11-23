@@ -55,6 +55,18 @@ def test_options_from_env_and_hashable_key():
         OrtOptions(graph_optimization="max")
 
 
+@pytest.mark.parametrize(("raw", "expected"), [("", None), (" 0 ", False), ("1", True)])
+def test_options_from_env_spin_override(raw, expected):
+    env = {"PRESENCE_ORT_ALLOW_SPINNING": raw}
+    assert OrtOptions.from_env(env).intra_op_allow_spinning is expected
+    assert OrtOptions.from_env(env, intra_op_allow_spinning=None).intra_op_allow_spinning is None
+
+
+def test_options_reject_invalid_spin_override():
+    with pytest.raises(ValueError, match="PRESENCE_ORT_ALLOW_SPINNING"):
+        OrtOptions.from_env({"PRESENCE_ORT_ALLOW_SPINNING": "2"})
+
+
 # --- graph sanitising ----------------------------------------------------------------------------------------------
 
 
@@ -121,6 +133,29 @@ def test_strip_matches_the_onnx_package():
 
 
 # --- sessions ------------------------------------------------------------------------------------------------------
+
+
+def test_spin_override_reaches_live_session_and_has_its_own_cache_key(tmp_path):
+    model = tmp_path / "add.onnx"
+    model.write_bytes(tiny_model())
+    default = OrtOptions(intra_op_threads=2)
+    off = OrtOptions.from_env({"PRESENCE_ORT_THREADS": "2", "PRESENCE_ORT_ALLOW_SPINNING": "0"})
+    on = off.replace(intra_op_allow_spinning=True)
+    key = "session.intra_op.allow_spinning"
+
+    baseline = load_model(model, default)
+    off_model = load_model(model, off)
+    on_model = load_model(model, on)
+    assert len({baseline, off_model, on_model}) == 3
+    assert load_model(model, off) is off_model
+    with pytest.raises(RuntimeError, match="allow_spinning"):
+        baseline.session.get_session_options().get_session_config_entry(key)
+    for loaded, expected in ((off_model, False), (on_model, True)):
+        session = loaded.session.get_session_options()
+        assert session.intra_op_num_threads == 2
+        assert session.get_session_config_entry(key) == str(int(expected))
+        assert loaded.info()["intra_op_allow_spinning"] is expected
+    assert baseline.info()["intra_op_allow_spinning"] is None
 
 
 def test_load_model_shares_sessions_and_falls_back_to_cpu(tmp_path, monkeypatch):

@@ -72,13 +72,18 @@ engine = PresenceEngine(ort=OrtOptions(providers=("coreml", "cpu"), intra_op_thr
 | `providers` | `("cpu",)` | 執行提供者，用別名（`cpu`、`cuda`、`tensorrt`、`rocm`、`directml`、`coreml`、`nnapi`、`qnn`、`openvino`、`xnnpack`、`webgpu`）或 ORT 全名。`auto` = 第一個可用的 GPU 提供者（CUDA、ROCm、DirectML），否則用 CPU。不可用的提供者會略過；CPU 永遠是最後的備援。 |
 | `provider_options` | `{}` | 各提供者的選項，例如 `{"cuda": {"device_id": 1}}` |
 | `intra_op_threads` | `0` | 每個模型的執行緒數（0 = 由 ORT 決定） |
+| `intra_op_allow_spinning` | `None` | `False` 關閉 intra-op 執行緒的忙等，`True` 開啟，`None` 沿用 ONNX Runtime 預設。 |
 | `graph_optimization` | `"all"` | `disable`、`basic`、`extended` 或 `all` |
 | `sanitize` | `True` | 移除重複列為輸入的權重（見下方） |
 
-預設的 `OrtOptions.from_env()` 會讀 `PRESENCE_ORT_PROVIDERS`（例如 `coreml,cpu`）、`PRESENCE_ORT_THREADS` 和
-`PRESENCE_ORT_GRAPH_OPT`；網頁 demo 也用同樣的變數。NPU 類的提供者（CoreML、NNAPI、QNN、OpenVINO）只有在明確指定時才會
+預設的 `OrtOptions.from_env()` 會讀 `PRESENCE_ORT_PROVIDERS`（例如 `coreml,cpu`）、`PRESENCE_ORT_THREADS`、
+`PRESENCE_ORT_ALLOW_SPINNING` 和 `PRESENCE_ORT_GRAPH_OPT`。網頁 demo 也用同樣的變數。SDK 若要直接套用
+[選用的 CPU 部署設定](configuration.md#選用的-cpu-部署設定)，可將
+`OrtOptions(intra_op_threads=2, intra_op_allow_spinning=False)` 傳給 `PresenceEngine(ort=...)`。
+
+NPU 類的提供者（CoreML、NNAPI、QNN、OpenVINO）只有在明確指定時才會
 使用，因為每個模型支援的運算子不同：在 Apple M 系列 Mac 上，SFace 用 CoreML 反而比 CPU 慢約 3 倍。切換前請先量測。
-PureSound 音訊模型一律用 CPU 提供者（10 ms 的音框用加速器沒有好處）。
+PureSound 音訊模型一律用單執行緒的 CPU 提供者（10 ms 的音框用加速器沒有好處）。
 
 **圖整理（sanitize）。** SFace（fp32 和 int8）把每個權重同時列為 initializer 和圖的輸入。ONNX Runtime 會把這種權重視為
 可覆寫，因此無法做常數摺疊，也無法把 Conv 和 BatchNorm 合併。`load_model` 在建立 session 前，於記憶體中移除這些重複的

@@ -74,6 +74,7 @@ it and list only the differences. *Low power* changes only performance settings,
 | `PRESENCE_MODEL_DIR` | Where models are stored (default: `models/` of a source checkout, else `~/.cache/presencekit/models`) |
 | `PRESENCE_ORT_PROVIDERS` | ONNX Runtime execution providers, e.g. `coreml,cpu` or `auto` (default `cpu`); see [SDK and ONNX Runtime](sdk.md) |
 | `PRESENCE_ORT_THREADS`, `PRESENCE_ORT_GRAPH_OPT` | Threads per model (0 = ORT decides) and graph optimisation level (`disable`/`basic`/`extended`/`all`) |
+| `PRESENCE_ORT_ALLOW_SPINNING` | ONNX Runtime intra-op spinning for vision models. `0` disables it, `1` enables it, and unset uses the runtime default. |
 | `PRESENCE_FACE_EMBEDDER=hist` | Do not load SFace; use the HSV histogram fallback |
 | `PRESENCE_NPU_DELEGATE` | External TFLite delegate library for `embed_backend = npu` (server-side only) |
 | `ASSEMBLYAI_API_KEY` | Key for the optional speech recognition |
@@ -82,6 +83,20 @@ it and list only the differences. *Low power* changes only performance settings,
 
 `npu_delegate_path` has no UI and cannot be changed over the WebSocket; it is set only from
 `PRESENCE_NPU_DELEGATE`.
+
+### Optional CPU deployment settings
+
+Use [`.env.example`](../.env.example) to keep the ONNX settings together. It selects the CPU provider, two threads
+per vision model and spinning disabled. If you already have a `.env` file, merge the ONNX variables into it.
+
+```sh
+cp -n .env.example .env
+uv run --env-file .env presencekit
+```
+
+Pass the file explicitly when starting the server. Git ignores `.env`. Leaving the variables unset uses the CPU
+provider, automatic thread count and ONNX Runtime spinning default. PureSound continues to use its dedicated
+single-thread CPU session.
 
 ## Parameter reference
 

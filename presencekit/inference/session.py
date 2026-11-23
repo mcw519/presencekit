@@ -30,8 +30,9 @@ class OrtOptions:
     """How ONNX models are run. Immutable; derive variants with :meth:`replace`.
 
     ``providers``: aliases or ORT names, or ``("auto",)``; CPU is always appended as the fallback.
-    ``intra_op_threads``: 0 lets ORT choose (one per physical core). ``sanitize``: strip duplicate initializer
-    inputs in memory so ORT can fold constants (see :mod:`presencekit.inference.onnx_graph`).
+    ``intra_op_threads``: 0 lets ORT choose (one per physical core). ``intra_op_allow_spinning``: override whether
+    intra-op workers spin while waiting for work (None leaves the ORT default). ``sanitize``: strip duplicate
+    initializer inputs in memory so ORT can fold constants (see :mod:`presencekit.inference.onnx_graph`).
     """
 
     providers: tuple[str, ...] = ("cpu",)
@@ -41,6 +42,7 @@ class OrtOptions:
     graph_optimization: str = "all"
     sanitize: bool = True
     log_severity: int = 3  # 0 verbose .. 4 fatal; 3 = errors only
+    intra_op_allow_spinning: bool | None = None
 
     def __post_init__(self):
         object.__setattr__(self, "providers", _prov.parse(self.providers) or ("cpu",))
@@ -50,7 +52,7 @@ class OrtOptions:
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None, **overrides) -> OrtOptions:
         """Defaults overridden by ``PRESENCE_ORT_PROVIDERS`` (e.g. ``coreml,cpu``), ``PRESENCE_ORT_THREADS`` and
-        ``PRESENCE_ORT_GRAPH_OPT``, then by keyword arguments."""
+        ``PRESENCE_ORT_GRAPH_OPT``, ``PRESENCE_ORT_ALLOW_SPINNING``, then by keyword arguments."""
         env = os.environ if env is None else env
         kw: dict = {}
         if env.get("PRESENCE_ORT_PROVIDERS"):
@@ -59,6 +61,11 @@ class OrtOptions:
             kw["intra_op_threads"] = int(env["PRESENCE_ORT_THREADS"])
         if env.get("PRESENCE_ORT_GRAPH_OPT"):
             kw["graph_optimization"] = env["PRESENCE_ORT_GRAPH_OPT"]
+        spinning = env.get("PRESENCE_ORT_ALLOW_SPINNING", "").strip()
+        if spinning:
+            if spinning not in {"0", "1"}:
+                raise ValueError("PRESENCE_ORT_ALLOW_SPINNING must be 0 or 1")
+            kw["intra_op_allow_spinning"] = spinning == "1"
         return cls(**{**kw, **overrides})
 
     def replace(self, **kw) -> OrtOptions:
@@ -79,6 +86,7 @@ class OrtOptions:
             self.graph_optimization,
             self.sanitize,
             self.log_severity,
+            self.intra_op_allow_spinning,
         )
 
     def __hash__(self):
@@ -98,6 +106,8 @@ class OrtOptions:
         so.intra_op_num_threads = self.intra_op_threads
         so.inter_op_num_threads = self.inter_op_threads
         so.log_severity_level = self.log_severity
+        if self.intra_op_allow_spinning is not None:
+            so.add_session_config_entry("session.intra_op.allow_spinning", "1" if self.intra_op_allow_spinning else "0")
         return so
 
 
@@ -136,6 +146,7 @@ class OrtModel:
             "providers": [_prov.short(p) for p in self.providers],
             "requested": list(self.options.providers),
             "threads": self.options.intra_op_threads,
+            "intra_op_allow_spinning": self.options.intra_op_allow_spinning,
             "graph_optimization": self.options.graph_optimization,
             "sanitized_inputs": self.sanitized,
             "load_ms": round(self.load_ms, 1),

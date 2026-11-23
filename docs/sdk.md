@@ -76,14 +76,19 @@ engine = PresenceEngine(ort=OrtOptions(providers=("coreml", "cpu"), intra_op_thr
 | `providers` | `("cpu",)` | Execution providers by alias (`cpu`, `cuda`, `tensorrt`, `rocm`, `directml`, `coreml`, `nnapi`, `qnn`, `openvino`, `xnnpack`, `webgpu`) or ORT name. `auto` = first available GPU provider (CUDA, ROCm, DirectML), else CPU. Unavailable providers are skipped; the CPU is always the last fallback. |
 | `provider_options` | `{}` | Per-provider options, e.g. `{"cuda": {"device_id": 1}}` |
 | `intra_op_threads` | `0` | Threads per model (0 = ORT decides) |
+| `intra_op_allow_spinning` | `None` | `False` prevents intra-op workers from spinning while waiting for work. `True` enables spinning. `None` uses the ONNX Runtime default. |
 | `graph_optimization` | `"all"` | `disable`, `basic`, `extended` or `all` |
 | `sanitize` | `True` | Strip graph inputs that duplicate weights (see below) |
 
-`OrtOptions.from_env()` (the default) reads `PRESENCE_ORT_PROVIDERS` (e.g. `coreml,cpu`), `PRESENCE_ORT_THREADS`
-and `PRESENCE_ORT_GRAPH_OPT`; the web demo uses the same variables. NPU-style providers (CoreML, NNAPI, QNN,
+`OrtOptions.from_env()` (the default) reads `PRESENCE_ORT_PROVIDERS` (e.g. `coreml,cpu`), `PRESENCE_ORT_THREADS`,
+`PRESENCE_ORT_ALLOW_SPINNING` and `PRESENCE_ORT_GRAPH_OPT`. The web demo uses the same variables. To configure the
+SDK directly for the [optional CPU deployment settings](configuration.md#optional-cpu-deployment-settings), pass
+`OrtOptions(intra_op_threads=2, intra_op_allow_spinning=False)` to `PresenceEngine(ort=...)`.
+
+NPU-style providers (CoreML, NNAPI, QNN,
 OpenVINO) are used only when named, because operator coverage differs per model: on an Apple M-series Mac, SFace
 ran about 3× slower on CoreML than on the CPU. Measure before switching. The PureSound audio model always uses the
-CPU provider (10 ms frames gain nothing from an accelerator).
+CPU provider with one thread (10 ms frames gain nothing from an accelerator).
 
 **Graph sanitising.** SFace (fp32 and int8) lists every weight as a graph input as well as an initializer. ONNX
 Runtime treats such weights as overridable, so it cannot fold constants or fuse Conv + BatchNorm. `load_model`
