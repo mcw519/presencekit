@@ -136,10 +136,9 @@ class TrackingMixin:
             self.tracks[t.id] = t
             self._event(now, "track_new", "new face in ROI", track=t.id)
 
-    def _match_kalman(self, dets, now):
-        """Kalman predict -> gated cost (IoU, motion, face cosine, torso appearance) -> Hungarian -> coast."""
+    def _associate_kalman(self, dets, tracks, now):
+        """Predict filters, assign detection/track indices and update matched filters."""
         c = self.cfg
-        tracks = list(self.tracks.values())
         for t in tracks:
             if t.kf is None:
                 t.kf = KalmanBox(t.bbox, t.last_seen)
@@ -172,15 +171,24 @@ class TrackingMixin:
                 if score >= 0.3:
                     cost[i, j] = 1.0 - score
                     cos_of[i, j] = 0.0 if cs is None else cs
-        used_d, used_t = set(), set()
+        matches = []
         for i, j in hungarian(cost) if len(dets) and len(tracks) else []:
             if cost[i, j] >= BIG:
                 continue
+            tracks[j].kf.update(dets[i].bbox)
+            matches.append((i, j, cos_of[i, j]))
+        return pred, matches
+
+    def _match_kalman(self, dets, now):
+        """Apply Kalman assignments, coast unmatched tracks and update participants."""
+        c = self.cfg
+        tracks = list(self.tracks.values())
+        pred, matches = self._associate_kalman(dets, tracks, now)
+        used_d, used_t = set(), set()
+        for i, j, cs in matches:
             used_d.add(i)
             used_t.add(j)
-            t = tracks[j]
-            t.kf.update(dets[i].bbox)
-            self._apply_match(t, dets[i], now, cos_of[i, j])
+            self._apply_match(tracks[j], dets[i], now, cs)
         for j, t in enumerate(tracks):
             if j in used_t:
                 continue
