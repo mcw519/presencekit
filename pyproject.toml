@@ -18,7 +18,11 @@ dependencies = [
 
 [project.optional-dependencies]
 # The web demo (presencekit command): FastAPI + WebSocket server and the browser UI.
-web = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+web = [
+    "fastapi>=0.110",
+    "opentelemetry-api>=1.45.2",  # FastAPI dependency; fixes GHSA-mf5v-w3w3-f6cg.
+    "uvicorn[standard]>=0.29",
+]
 # LiteRT: MoveNet TFLite fallback when the ONNX export is absent, and the SFace TFLite / NPU delegate backend.
 litert = ["ai-edge-litert>=2.3.0"]
 # PureSound streaming voice isolation (audio_pipeline=puresound), public repo github.com/mcw519/puresound.
