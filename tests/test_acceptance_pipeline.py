@@ -1,8 +1,11 @@
-"""Statistical acceptance contracts, using numeric fake measurements only."""
+"""Pipeline prerequisite and statistical acceptance contracts."""
+
+from dataclasses import replace
 
 import pytest
 
 from presencekit import acceptance_pipeline as pipeline
+from presencekit.inference import CATALOG
 
 
 def samples(seconds=10, rtf=0.3, queue=0, dropped=0, rss_growth_mib=0):
@@ -122,6 +125,36 @@ def test_missing_models_are_not_run_without_starting_server(monkeypatch):
     cases = pipeline.run_pipeline()
     assert cases[0]["status"] == "not_run"
     assert "no download" in cases[0]["details"]["reason"]
+
+
+@pytest.mark.parametrize(
+    "face,pose,litert,missing",
+    [
+        ("yunet", "movenet", False, None),
+        ("yunet-opencv", "movenet-tflite", True, None),
+        ("yunet", "movenet-tflite", False, "ai_edge_litert"),
+        ("yunet", None, True, CATALOG["movenet"].filename),
+        (None, "movenet", False, CATALOG["yunet"].filename),
+    ],
+)
+def test_preflight_accepts_onnx_or_legacy_fallbacks(tmp_path, monkeypatch, face, pose, litert, missing):
+    monkeypatch.setattr(pipeline, "ROOT", tmp_path)
+    unavailable = set() if litert else {"ai_edge_litert"}
+    monkeypatch.setattr(
+        pipeline.importlib.util, "find_spec", lambda package: None if package in unavailable else object()
+    )
+    models = tmp_path / "models"
+    models.mkdir()
+    for key in filter(None, (face, pose, "sface", "puresound", "puresound-manifest")):
+        spec = replace(CATALOG[key], sha256=None)
+        monkeypatch.setitem(CATALOG, key, spec)
+        (models / spec.filename).write_bytes(bytes(1024))
+
+    result = pipeline._preflight("blank")
+    if missing is None:
+        assert result is None
+    else:
+        assert missing in result
 
 
 def test_child_environment_excludes_cloud_credentials(monkeypatch):

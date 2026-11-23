@@ -1,0 +1,55 @@
+{
+  "schema": "rust-anything/bridge@1",
+  "root": "..",
+  "unit": "oracle.py",
+  "language": "python",
+  "kind": "pyo3",
+  "crate_name": "presencekit-kalman-rs",
+  "exports": [
+    {
+      "name": "associate",
+      "file": "oracle.py",
+      "line": 51,
+      "params": [
+        {
+          "name": "now",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "gates",
+          "ts_type": "number[]",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "states",
+          "ts_type": "number[][]",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "tracks",
+          "ts_type": "number[][][]",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "detections",
+          "ts_type": "number[][][]",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "number[][]",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    }
+  ],
+  "classes": [],
+  "js_only": [],
+  "float_tolerance": 1e-6
+}

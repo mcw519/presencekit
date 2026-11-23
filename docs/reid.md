@@ -12,6 +12,8 @@ The driver stores the best available face crop for up to three joined participan
 
 The comparison decision has a **10-second wall-clock deadline** from the new session start. Presence states such as `AWAY` do not pause it. The first clear participant face may be awaited for up to `reid_face_wait`; uncertain scores can request one fresh-frame retry, subject to the same overall deadline. Timeouts, missing faces, uncertain scores, request caps, missing credentials, circuit-breaker state, and service errors leave the new conversation unlinked. Jev quality and latency still require separate tests with consented subjects; mock results validate only application control flow.
 
+Set `reid_model=jev-1.14.0` to pin that version and enable `reid_batch` to try one HTTP request per current face with all eligible reference faces. The default is one request per pair. Both modes require a complete set of valid scores before deciding. Each request consumes one call from the budget, and input tokens are recorded once per response. A failed batch leaves the provisional conversation unlinked.
+
 The server sends `handoff` with `session`, `conversation_id`, `previous_conversation_id`, `decision`, `resumed_from_session`, `score`, `reason`, and `calls`. The `conversation_id` remains an opaque random identifier; this application does not store dialogue content.
 
 ## Page continuity and expiry
@@ -32,7 +34,7 @@ At most three inactive historical conversations are retained in the PoC profile;
 |---|---|
 | Reference/probe | Face-only 320 × 320 JPEG crops in server memory; whole frames are not retained for comparison. |
 | Retention | Up to 600 seconds from normal `ENDED`; page detach also has a 600-second hard lease. No disk persistence. |
-| Provider | Typesafe Jev receives the two crops for comparison when configured and consented. No call is made by synthetic acceptance. |
+| Provider | With configuration and consent, Typesafe Jev receives the current face crop and one reference crop per request, or all eligible reference crops in batch mode. Synthetic acceptance makes no Jev calls. |
 | Consent | Both the feature switch and consent flag must be true. Turning it off wipes stored references. |
 | API key | `TYPESAFE_API_KEY` or the Settings key field; held in memory and not logged or echoed. |
 | Browser thumbnails | Optional 112 px comparison previews are sent only to this page when `reid_show_crops` is enabled; they are not diagnostic event data. |

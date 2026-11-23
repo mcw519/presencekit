@@ -25,7 +25,7 @@ Each of these is **off by default** and must be enabled by the operator.
 | Feature | What changes | Read more |
 |---|---|---|
 | Cloud speech recognition | Audio is streamed to AssemblyAI during sessions (only speech chunks by default). | [ASR](asr.md) |
-| Cross-session re-ID | Needs `reid_consent` too. One face crop per user kept **in server memory** for at most 10 minutes; two crops per comparison are sent to the re-ID service. Optional 112 px thumbnails go to *this browser only*. | [Re-ID](reid.md) |
+| Cross-session re-ID | Needs `reid_consent` too. One face crop per user is kept **in server memory** for at most 10 minutes. Each request sends a current face crop and one reference crop, or all eligible reference crops in batch mode. Optional 112 px thumbnails go to *this browser only*. | [Re-ID](reid.md) |
 | Recording | Started by the user. Audio tracks are collected in the **browser** and downloaded to the user's own computer. The server writes nothing; video is never recorded. | [Audio](audio.md#listening-and-recording) |
 
 If you deploy any of them, tell the people in front of the device, get consent where required (faces are biometric

@@ -1,0 +1,9 @@
+target/
+*.node
+pkg/
+.rust-anything/
+cases.jsonl
+recorded-from.json
+*.so
+*.pyd
+__pycache__/

@@ -96,7 +96,13 @@ class PresenceEngine:
     def configure(self, changes: dict[str, Any]) -> list[str]:
         """Apply settings (flat keys, validated and clamped like the web settings). Returns warnings."""
         with self._lock:
-            return self.config.update(changes)
+            warnings = self.config.update(changes)
+            if self._audio is not None and self.config.audio_pipeline != "puresound":
+                self._audio = None
+                tracker = self.core.tracker
+                tracker.speech_source = "browser"
+                tracker.speaking = False
+            return warnings
 
     # --- input ------------------------------------------------------------------------------------------------------
 

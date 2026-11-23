@@ -3,6 +3,8 @@
 import asyncio
 import time
 
+import pytest
+
 from presencekit.reid import CrossSessionReid, Ref, ReferenceStore
 from presencekit.tracker import Config
 
@@ -182,16 +184,21 @@ def test_interrupt_reconnect_retains_faces_and_does_not_refresh_history():
     asyncio.run(go())
 
 
-def test_deadline_cancels_hanging_backend_without_more_observations():
+@pytest.mark.parametrize("batch", [False, True])
+def test_deadline_cancels_hanging_backend_without_more_observations(batch):
     class Hanging:
         async def compare(self, *_args, **_kwargs):
             await asyncio.sleep(60)
+
+        compare_batch = compare
 
     async def go():
         clock = time.monotonic
         store = ReferenceStore()
         store.add(Ref(1, "A", b"A", clock()), 3)
         driver, out = setup(store=store, clock=clock)
+        assert driver.cfg.reid_decision_timeout == 10
+        driver.cfg.reid_batch = batch
         driver.cfg.reid_decision_timeout = 0.04
         driver.cfg.reid_timeout = 10
         driver.client = Hanging()
@@ -205,7 +212,8 @@ def test_deadline_cancels_hanging_backend_without_more_observations():
     asyncio.run(go())
 
 
-def test_cancel_resistant_backend_cannot_handoff_after_wipe_or_end():
+@pytest.mark.parametrize("batch", [False, True])
+def test_cancel_resistant_backend_cannot_handoff_after_wipe_or_end(batch):
     class Late:
         def __init__(self):
             self.entered = asyncio.Event()
@@ -219,11 +227,16 @@ def test_cancel_resistant_backend_cannot_handoff_after_wipe_or_end():
                 await self.release.wait()
             return 0.99, {}
 
+        async def compare_batch(self, *_args, **_kwargs):
+            score, meta = await self.compare()
+            return [score], meta
+
     async def go(wipe):
         clock = Clock()
         store = ReferenceStore()
         store.add(Ref(1, "A", b"A", clock()), 3)
         driver, out = setup(store=store, clock=clock)
+        driver.cfg.reid_batch = batch
         driver.client = client = Late()
         await feed(driver, snap(2, [face(1)]), wait=False)
         task = driver.task

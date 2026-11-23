@@ -201,19 +201,21 @@ def _preflight(scene):
         "uvicorn",
         "onnxruntime",
         "puresound_streaming",
-        "ai_edge_litert",
     ):
         if importlib.util.find_spec(package) is None:
             return f"Local dependency unavailable: {package}; no installation attempted."
-    models = ROOT / "models"
-    names = (
-        "face_detection_yunet_2023mar.onnx",
-        "face_recognition_sface_2021dec.onnx",
-        "movenet_multipose_lightning_fp16.tflite",
-        "dpcrn_curriculum_v2.onnx",
-        "dpcrn_curriculum_v2.json",
-    )
-    missing = [name for name in names if not (models / name).is_file() or not (models / name).stat().st_size]
+
+    from .inference import ModelStore
+
+    store = ModelStore(ROOT / "models", allow_download=False)
+    missing = [store.path(key).name for key in ("sface", "puresound", "puresound-manifest") if not store.local(key)]
+    if not (store.local("yunet") or store.local("yunet-opencv")):
+        missing.append(f"{store.path('yunet').name} or {store.path('yunet-opencv').name}")
+    if not store.local("movenet"):
+        if not store.local("movenet-tflite"):
+            missing.append(f"{store.path('movenet').name} or {store.path('movenet-tflite').name}")
+        elif importlib.util.find_spec("ai_edge_litert") is None:
+            return "Local dependency unavailable for MoveNet TFLite: ai_edge_litert; no installation attempted."
     if missing:
         return "Local model files missing: " + ", ".join(missing) + "; no download attempted."
     if scene == "twofaces" and not (ROOT / "tests" / "data" / "face.jpg").is_file():
@@ -356,6 +358,7 @@ async def _replay(port, pid, seconds, warmup_seconds, scene):
                     "warmup_seconds": round(measured_start - warm_start, 3),
                     "scene": scene,
                     "error_events": final["error_events"],
+                    "model_backends": final["model_backends"],
                 },
             )
         finally:
@@ -476,10 +479,12 @@ def _serve(fd):
         return original_connect(sock, address)
 
     socket.socket.connect = local_only
-    runtime._pipeline = vision.VisionPipeline(allow_download=False)
-    runtime._pose_cache["det"] = vision.load_pose_detector(allow_download=False)
-    if runtime._pipeline.embed_status["active"] != "fp32" or runtime._pose_cache["det"] is None:
-        raise RuntimeError("Required real models did not load; fallback is not accepted")
+    pipe = vision.VisionPipeline(allow_download=False)
+    pose = vision.load_pose_detector(allow_download=False)
+    if pipe.embed_status["active"] != "fp32" or pose is None:
+        raise RuntimeError("YuNet, SFace or MoveNet could not be loaded from local models")
+    runtime._pipeline = pipe
+    runtime._pose_cache["det"] = pose
     Isolator()  # Shared ORT session loaded before exposing the ready endpoint.
     from .server import app
 
@@ -493,7 +498,17 @@ def _serve(fd):
 
     @app.get("/_acceptance/health")
     def health():
-        return {"pid": os.getpid(), "errors": sum(error_events.values()), "error_events": dict(error_events)}
+        return {
+            "pid": os.getpid(),
+            "errors": sum(error_events.values()),
+            "error_events": dict(error_events),
+            "model_backends": {
+                "yunet": pipe.detector.accelerator,
+                "sface": pipe.embed_status["accelerator"],
+                "movenet": pose.accelerator,
+                "puresound": "cpu (onnxruntime)",
+            },
+        }
 
     server = uvicorn.Server(uvicorn.Config(app, access_log=False, log_config=None, ws_max_size=8 * 1024 * 1024))
     server.run(sockets=[socket.socket(fileno=fd)])

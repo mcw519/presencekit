@@ -70,6 +70,7 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | `PRESENCE_MODEL_DIR` | 模型存放位置（預設：原始碼目錄下的 `models/`，否則 `~/.cache/presencekit/models`） |
 | `PRESENCE_ORT_PROVIDERS` | ONNX Runtime 執行提供者，例如 `coreml,cpu` 或 `auto`（預設 `cpu`）；見 [SDK 與 ONNX Runtime](sdk.md) |
 | `PRESENCE_ORT_THREADS`、`PRESENCE_ORT_GRAPH_OPT` | 每個模型的執行緒數（0 = 由 ORT 決定）與圖最佳化等級（`disable`/`basic`/`extended`/`all`） |
+| `PRESENCE_ORT_ALLOW_SPINNING` | 視覺模型的 ONNX Runtime intra-op 執行緒是否忙等。設為 `0` 關閉、`1` 開啟，未設定時沿用 runtime 預設。 |
 | `PRESENCE_FACE_EMBEDDER=hist` | 不載入 SFace，改用 HSV 直方圖備援 |
 | `PRESENCE_NPU_DELEGATE` | `embed_backend = npu` 的外部 TFLite delegate 函式庫（只能在伺服器端設定） |
 | `ASSEMBLYAI_API_KEY` | 選用語音辨識的 key |
@@ -77,6 +78,19 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | `PRESENCE_LOG_*`、`PRESENCE_EVENT_BUFFER`、`PRESENCE_VISION_LOCK_TIMEOUT` | 日誌，見[日誌](logging.md) |
 
 `npu_delegate_path` 沒有介面，也不能透過 WebSocket 修改，只能用 `PRESENCE_NPU_DELEGATE` 設定。
+
+### 選用的 CPU 部署設定
+
+可用 [`.env.example`](../../.env.example) 集中管理 ONNX 設定。範例會讓每個視覺模型使用 CPU、2 個執行緒並關閉 spinning。
+如果已經有 `.env`，請把範例中的 ONNX 變數合併到現有檔案。
+
+```sh
+cp -n .env.example .env
+uv run --env-file .env presencekit
+```
+
+在 server 啟動時明確指定要載入的檔案。`.env` 由 Git 忽略。未設定這些變數時，沿用 CPU 提供者，由 ONNX Runtime 決定
+執行緒數和 spinning 行為。PureSound 繼續使用獨立的單執行緒 CPU session。
 
 ## 參數表
 
@@ -241,7 +255,8 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | `reid_consent` | off | on / off | **我已告知使用者並取得同意** — 必須取得同意：每個 conversation 最多三位參與者的臉部裁切，只保存在伺服器記憶體，並送至第三方雲端比對。不寫入磁碟或 log；開啟顯示照片時才傳送縮圖至此瀏覽器。 |
 | `reid_show_crops` | on | on / off | **顯示比對照片** — 在「使用者比對」卡片顯示這次送去比對的臉和比對到的參考臉（小縮圖，約 112 px）。縮圖只經這個連線送到這個瀏覽器顯示，不寫入磁碟、log、除錯事件或錄音；「清除參考臉」或重設時一併清除。 |
 | `reid_provider` | `jev` | `jev` | **雲端服務** *(進階)* — 比對用的雲端後端（可抽換）。目前提供 Jev（Typesafe）。 |
-| `reid_model` | `jev-latest` | `jev-latest` / `jev-1.13.0` | **模型** — jev-latest 會跟著服務更新；固定 jev-1.13.0 可確保結果可重現。 |
+| `reid_model` | `jev-latest` | `jev-latest` / `jev-1.13.0` / `jev-1.14.0` | **模型** — jev-latest 會跟著服務更新。比較結果時可選擇固定版本。 |
+| `reid_batch` | off | on / off | **批次比對人臉** *(進階)* — 每張當前人臉用一次請求比對所有符合條件的參考臉，仍受時間與呼叫次數限制。 |
 | `reid_threshold` | 0.9 | 0.5 – 0.99 | **同一人門檻** — 分數達到這個值才視為同一人並接續對話。認錯人的代價較高，預設 0.9（LFW 評測：FAR 0%、FRR 14%）。 |
 | `reid_uncertain_low` | 0.4 | 0 – 0.95 | **不確定下限** *(進階)* — 分數介於這個值和門檻之間時，再取一張新畫面比對一次；仍未達門檻就開新對話。 |
 | `reid_ttl` | 600 | 30 – 600 | **參考臉保存時間** — 已結束對話的成員參考保存在記憶體多久，從最後一次正常 session END 起算。重連不延長期限，到期自動清除。 |

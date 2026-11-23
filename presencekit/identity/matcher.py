@@ -9,7 +9,7 @@ import os
 import urllib.error
 import urllib.request
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Protocol, runtime_checkable
 
 from .keys import _key
@@ -48,7 +48,7 @@ class CloudReid:
 
 
 class JevClient(CloudReid):
-    """Typesafe Jev images API (``noul`` question over two image assets). Call shape follows the LFW benchmark."""
+    """Typesafe Jev images API, with one ``noul`` question per reference face."""
 
     name = "jev"
 
@@ -57,16 +57,23 @@ class JevClient(CloudReid):
         self.key_fn = key_fn
 
     def body(self, ref: bytes, query: bytes, model: str) -> dict:
-        r1, r2 = str(uuid.uuid4()), str(uuid.uuid4())
-        enc = lambda b: base64.b64encode(b).decode()  # noqa: E731
+        return self._body(query, {"same": ("reference", ref)}, model)
+
+    @staticmethod
+    def _body(query: bytes, refs: dict[str, tuple[str, bytes]], model: str) -> dict:
+        images = {"query": query, **dict(refs.values())}
+        state = {name: str(uuid.uuid4()) for name in images}
         return {
             "model": model,
-            "state": {"reference": r1, "query": r2},
+            "state": state,
             "assets": {
-                r1: {"type": "image", "format": "jpg", "data_base64": enc(ref)},
-                r2: {"type": "image", "format": "jpg", "data_base64": enc(query)},
+                state[name]: {"type": "image", "format": "jpg", "data_base64": base64.b64encode(jpeg).decode()}
+                for name, jpeg in images.items()
             },
-            "questions": {"same": {"type": "noul", "instructions": QUESTION}},
+            "questions": {
+                key: {"type": "noul", "instructions": QUESTION.replace("`reference`", f"`{name}`")}
+                for key, (name, _) in refs.items()
+            },
         }
 
     def _post(self, data: bytes, key: str, timeout: float):
@@ -93,19 +100,39 @@ class JevClient(CloudReid):
             raise ReidError("bad_response") from None
 
     async def compare(self, ref: bytes, query: bytes, *, model: str, timeout: float) -> tuple[float, dict]:
+        scores, meta = await self._compare(self.body(ref, query, model), timeout)
+        return scores[0], meta
+
+    async def compare_batch(
+        self, refs: Sequence[bytes], query: bytes, *, model: str, timeout: float
+    ) -> tuple[list[float], dict]:
+        """Compare one query to all references in one request, preserving reference order."""
+        if not refs:
+            return [], {}
+        assets = {f"same_{i}": (f"reference_{i}", ref) for i, ref in enumerate(refs)}
+        return await self._compare(self._body(query, assets, model), timeout)
+
+    async def _compare(self, body: dict, timeout: float) -> tuple[list[float], dict]:
         key = self.key_fn()
         if not key:
             raise ReidError("no_key")
-        data = json.dumps(self.body(ref, query, model)).encode()
+        data = json.dumps(body).encode()
         j = await asyncio.to_thread(self._post, data, key, timeout)
+        scores = []
         try:
-            score = float(((j.get("answers") or {}).get("same") or {})["noul"])
-        except (KeyError, TypeError, ValueError):
+            for question in body["questions"]:
+                value = j["answers"][question]["noul"]
+                if isinstance(value, bool):
+                    raise ValueError
+                score = float(value)
+                if not 0 <= score <= 1:  # Also rejects NaN and infinity.
+                    raise ValueError
+                scores.append(score)
+        except (KeyError, TypeError, ValueError, OverflowError):
             raise ReidError("bad_response") from None
-        return max(0.0, min(1.0, score)), {
-            "model": j.get("model"),
-            "in_tok": (j.get("usage") or {}).get("input_tokens"),
-        }
+        usage = j.get("usage")
+        tokens = usage.get("input_tokens") if isinstance(usage, dict) else None
+        return scores, {"model": j.get("model"), "in_tok": tokens if type(tokens) is int and tokens >= 0 else None}
 
 
 # v0.13 layer name of the shipped matcher

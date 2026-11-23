@@ -1,0 +1,55 @@
+{
+  "schema": "rust-anything/bridge@1",
+  "root": "/Users/milowu/Documents/open_sources/presencekit/experiments/yunet_rust",
+  "unit": "oracle.py",
+  "language": "python",
+  "kind": "pyo3",
+  "crate_name": "presencekit-yunet-rs",
+  "exports": [
+    {
+      "name": "postprocess",
+      "file": "oracle.py",
+      "line": 51,
+      "params": [
+        {
+          "name": "pad_width",
+          "ts_type": "int",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "heads",
+          "ts_type": "number[][]",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "score_thr",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "nms_thr",
+          "ts_type": "number",
+          "optional": false,
+          "rest": false
+        },
+        {
+          "name": "top_k",
+          "ts_type": "int",
+          "optional": false,
+          "rest": false
+        }
+      ],
+      "returns": "number[][]",
+      "is_async": false,
+      "is_generator": false,
+      "type_params": [],
+      "uses_instanceof": false
+    }
+  ],
+  "classes": [],
+  "js_only": [],
+  "float_tolerance": 1e-6
+}

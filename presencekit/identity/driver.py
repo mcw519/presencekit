@@ -13,7 +13,7 @@ from .crops import face_quality, thumb
 from .decision import MatchTally, decide
 from .guard import CallGuard
 from .keys import key_status
-from .matcher import JevClient
+from .matcher import JevClient, ReidError
 from .store import _STORES, Ref, ReferenceStore
 
 
@@ -354,8 +354,10 @@ class ContinuationDriver:
 
     async def _run(self, queries, refs, session, epoch, generation):
         tally = MatchTally(self.cfg.reid_threshold, self.cfg.reid_uncertain_low)
+        compare_batch = getattr(self.client, "compare_batch", None) if self.cfg.reid_batch else None
+        groups = [refs] if compare_batch and refs else [(ref,) for ref in refs]
         for tid, query in queries.items():
-            for ref in refs:
+            for group in groups:
                 if not self._alive(session, epoch, generation):
                     return
                 now = self.clock()
@@ -371,9 +373,16 @@ class ContinuationDriver:
                 # Reserve the call before awaiting: cancellation cannot evade caps.
                 self.guard.reserve(now)
                 try:
-                    score, meta = await asyncio.wait_for(
-                        self.client.compare(ref.jpeg, query, model=self.cfg.reid_model, timeout=timeout), timeout
-                    )
+                    if compare_batch:
+                        request = compare_batch(
+                            [ref.jpeg for ref in group], query, model=self.cfg.reid_model, timeout=timeout
+                        )
+                    else:
+                        request = self.client.compare(group[0].jpeg, query, model=self.cfg.reid_model, timeout=timeout)
+                    result, meta = await asyncio.wait_for(request, timeout)
+                    scores = result if compare_batch else (result,)
+                    if len(scores) != len(group):
+                        raise ReidError("bad_response")
                 except asyncio.CancelledError:
                     return
                 except Exception as error:
@@ -392,12 +401,16 @@ class ContinuationDriver:
                 self.guard.succeeded(meta.get("in_tok") or 0)
                 if self._remaining() <= 0:
                     return self._finish(session, epoch, generation, "new", "decision_timeout", self.clock())
+                for ref, score in zip(group, scores, strict=True):
+                    tally.add(tid, ref, score)
+                ref, score = max(zip(group, scores, strict=True), key=lambda pair: pair[1])
                 if self.view_ref is None or score > self.view_ref[0]:
                     self.view_probe, self.view_ref = query, (score, ref)
                 self.event(
                     "reid_call",
                     session=session,
                     ref_session=ref.session,
+                    comparisons=len(group),
                     score=round(score, 3),
                     latency_ms=round((time.perf_counter() - t0) * 1000),
                     model=meta.get("model"),
@@ -405,7 +418,6 @@ class ContinuationDriver:
                     calls=self.calls,
                     cost_est=round(self.calls * self.cfg.reid_cost_per_call, 4),
                 )
-                tally.add(tid, ref, score)
         now = self.clock()
         verdict = decide(tally, self.retried)
         if verdict.decision == "retry":

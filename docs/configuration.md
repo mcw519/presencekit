@@ -74,6 +74,7 @@ it and list only the differences. *Low power* changes only performance settings,
 | `PRESENCE_MODEL_DIR` | Where models are stored (default: `models/` of a source checkout, else `~/.cache/presencekit/models`) |
 | `PRESENCE_ORT_PROVIDERS` | ONNX Runtime execution providers, e.g. `coreml,cpu` or `auto` (default `cpu`); see [SDK and ONNX Runtime](sdk.md) |
 | `PRESENCE_ORT_THREADS`, `PRESENCE_ORT_GRAPH_OPT` | Threads per model (0 = ORT decides) and graph optimisation level (`disable`/`basic`/`extended`/`all`) |
+| `PRESENCE_ORT_ALLOW_SPINNING` | ONNX Runtime intra-op spinning for vision models. `0` disables it, `1` enables it, and unset uses the runtime default. |
 | `PRESENCE_FACE_EMBEDDER=hist` | Do not load SFace; use the HSV histogram fallback |
 | `PRESENCE_NPU_DELEGATE` | External TFLite delegate library for `embed_backend = npu` (server-side only) |
 | `ASSEMBLYAI_API_KEY` | Key for the optional speech recognition |
@@ -82,6 +83,20 @@ it and list only the differences. *Low power* changes only performance settings,
 
 `npu_delegate_path` has no UI and cannot be changed over the WebSocket; it is set only from
 `PRESENCE_NPU_DELEGATE`.
+
+### Optional CPU deployment settings
+
+Use [`.env.example`](../.env.example) to keep the ONNX settings together. It selects the CPU provider, two threads
+per vision model and spinning disabled. If you already have a `.env` file, merge the ONNX variables into it.
+
+```sh
+cp -n .env.example .env
+uv run --env-file .env presencekit
+```
+
+Pass the file explicitly when starting the server. Git ignores `.env`. Leaving the variables unset uses the CPU
+provider, automatic thread count and ONNX Runtime spinning default. PureSound continues to use its dedicated
+single-thread CPU session.
 
 ## Parameter reference
 
@@ -247,7 +262,8 @@ date. Labels and help texts are the same ones shown in Settings.
 | `reid_consent` | off | on / off | **Users are informed and agreed** — Required: up to three participant face crops per conversation are retained only in server memory and sent to a third-party cloud for comparison. Never written to disk or logs; optional thumbnails reach this browser. |
 | `reid_show_crops` | on | on / off | **Show comparison photos** — Show this session's face and the matched reference face (small thumbnails, about 112 px) in the "User comparison" card. Thumbnails go only to this browser over this connection and are never written to disk, logs, debug events or recordings; "Clear reference faces" or reset removes them. |
 | `reid_provider` | `jev` | `jev` | **Cloud service** *(advanced)* — Cloud backend used for comparison (pluggable). Currently Jev (Typesafe). |
-| `reid_model` | `jev-latest` | `jev-latest` / `jev-1.13.0` | **Model** — jev-latest follows service updates; pin jev-1.13.0 for reproducible results. |
+| `reid_model` | `jev-latest` | `jev-latest` / `jev-1.13.0` / `jev-1.14.0` | **Model** — jev-latest follows service updates. Select a numbered version for repeatable tests. |
+| `reid_batch` | off | on / off | **Batch face comparisons** *(advanced)* — Send one request per current face with all eligible reference faces. Time and call limits still apply. |
 | `reid_threshold` | 0.9 | 0.5 – 0.99 | **Same-person threshold** — A score at least this high means the same person and resumes the conversation. Mistaking someone is costly, so the default is 0.9 (LFW evaluation: FAR 0%, FRR 14%). |
 | `reid_uncertain_low` | 0.4 | 0 – 0.95 | **Uncertain lower bound** *(advanced)* — Between this and the threshold, one more fresh frame is compared; still below the threshold means a new conversation. |
 | `reid_ttl` | 600 | 30 – 600 | **Reference retention** — Retention of ended conversation members in memory, measured from the last normal session END. Reconnects do not renew it; expiry deletes the references. |
