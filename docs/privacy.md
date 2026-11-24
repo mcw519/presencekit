@@ -34,8 +34,9 @@ data in many jurisdictions, for example GDPR art. 9), and check the providers' r
 ## Secrets
 
 - The access token comes only from the `PRESENCE_TOKEN` environment variable.
-- API keys (`ASSEMBLYAI_API_KEY`, `TYPESAFE_API_KEY`) come from the environment or the Settings password fields;
-  they are kept in process memory, never written, logged or returned to the browser.
+- API keys (`ASSEMBLYAI_API_KEY`, `TYPESAFE_API_KEY`) can be configured in the local `.env` file or entered in
+  the Settings password fields. PresenceKit holds the active key in process memory and keeps it out of logs
+  and browser responses. UI entries apply only to the running process.
 - Logs mask fields named `key`, `token`, `secret`, `password` or `authorization`, and `token=` / `key=` in URLs.
 - `PRESENCE_NPU_DELEGATE` (a native library) can only be set from the environment, never over the network.
 

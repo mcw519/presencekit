@@ -27,9 +27,10 @@
 
 ## API key
 
-在伺服器設定 `ASSEMBLYAI_API_KEY`，或在 **設定 → 語音辨識** 輸入（`POST /api/asr_key`，受 `PRESENCE_TOKEN` 保護）。
-key 只存在程序記憶體，從不寫入、記錄或回傳；`GET /api/asr_status` 只回 `{"set": true/false, "source": "env" | "ui"}`。
-key 由所有連線共用，demo 對外開放時一定要設定 `PRESENCE_TOKEN`。
+在[伺服器的 .env](configuration.md#使用-env-啟動) 設定 `ASSEMBLYAI_API_KEY`，或在 **設定 → 語音辨識** 手動輸入
+（`POST /api/asr_key`，受 `PRESENCE_TOKEN` 保護）。手動輸入會覆蓋目前程序的啟動值。
+`GET /api/asr_status` 只回報是否已設定與來源（`env`、`ui` 或 `null`）。
+key 由所有連線共用，demo 對外開放時要設定 `PRESENCE_TOKEN`。
 
 ## 參數
 

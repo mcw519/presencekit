@@ -255,7 +255,7 @@ function applyDeps(){for(const m of MODULES){
   const body=$('mod_'+m.id).querySelector('.mbody'),hid=m.keys.filter(k=>$('row_'+k)&&$('row_'+k).hidden).length;
   body.dataset.hidden=hid;}}
 function syncUI(skip){if(cfg.asr_provider==='none')captionOff();
- document.querySelectorAll('#groups input,#groups select').forEach(inp=>{if(inp===skip)return;const k=inp.dataset.k;
+ document.querySelectorAll('#groups input[data-k],#groups select[data-k]').forEach(inp=>{if(inp===skip)return;const k=inp.dataset.k;
   if(inp.type==='checkbox'){inp.checked=!!cfg[k];return}
   const v=BOXES.includes(k)?(+cfg[k][+inp.dataset.i]).toFixed(2):cfg[k];inp.value=v;
   if(inp.type==='range'){const o=$('o_'+k);if(o)o.textContent=LM(k).u?`${v} ${LM(k).u}`:v}});

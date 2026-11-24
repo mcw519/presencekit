@@ -32,7 +32,8 @@ PresenceKit 用鏡頭和麥克風觀察人，所以設計上盡量少保存、�
 ## 機密
 
 - 存取權杖只從環境變數 `PRESENCE_TOKEN` 讀取。
-- API key（`ASSEMBLYAI_API_KEY`、`TYPESAFE_API_KEY`）來自環境變數或設定頁的密碼欄位；只存在程序記憶體，從不寫入、記錄或回傳給瀏覽器。
+- API key（`ASSEMBLYAI_API_KEY`、`TYPESAFE_API_KEY`）可放在本機 `.env`，也可從設定頁的密碼欄位輸入。
+  PresenceKit 將使用中的 key 放在程序記憶體，日誌和瀏覽器回應都不含 key。手動輸入只對目前程序有效。
 - 日誌會遮蔽名為 `key`、`token`、`secret`、`password`、`authorization` 的欄位，以及網址中的 `token=` / `key=`。
 - `PRESENCE_NPU_DELEGATE`（原生函式庫）只能用環境變數設定，不能透過網路設定。
 

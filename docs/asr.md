@@ -30,10 +30,10 @@ browser panel ◀── WS {"type": "asr"} ◀── server (forwards only, stor
 
 ## API key
 
-Set `ASSEMBLYAI_API_KEY` on the server, or type it into **Settings → Speech recognition** (`POST /api/asr_key`,
-protected by `PRESENCE_TOKEN`). The key is kept in process memory only, never written, logged or returned;
-`GET /api/asr_status` only answers `{"set": true/false, "source": "env" | "ui"}`. The key is shared by all
-connections, so always set `PRESENCE_TOKEN` when the demo is reachable by others.
+Set `ASSEMBLYAI_API_KEY` in [the server's .env file](configuration.md#loading-settings-from-env), or type it into
+**Settings → Speech recognition** (`POST /api/asr_key`, protected by `PRESENCE_TOKEN`). A manual entry overrides the
+startup key for the current process. `GET /api/asr_status` returns only the set flag and the source
+(`env`, `ui`, or `null`). The key is shared by all connections, so set `PRESENCE_TOKEN` when others can reach the demo.
 
 ## Parameters
 

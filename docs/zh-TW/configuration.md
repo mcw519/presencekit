@@ -74,23 +74,31 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | `PRESENCE_FACE_EMBEDDER=hist` | 不載入 SFace，改用 HSV 直方圖備援 |
 | `PRESENCE_NPU_DELEGATE` | `embed_backend = npu` 的外部 TFLite delegate 函式庫（只能在伺服器端設定） |
 | `ASSEMBLYAI_API_KEY` | 選用語音辨識的 key |
-| `TYPESAFE_API_KEY` | 選用 re-ID 服務的 key；`REID_JEV_URL` 可以改端點 |
+| `ASSEMBLYAI_WS_URL` | 選用的 AssemblyAI WebSocket 端點覆寫 |
+| `TYPESAFE_API_KEY` | 選用 Typesafe Jev re-ID 服務的 key |
+| `REID_JEV_URL` | 選用的 Typesafe Jev 端點覆寫 |
 | `PRESENCE_LOG_*`、`PRESENCE_EVENT_BUFFER`、`PRESENCE_VISION_LOCK_TIMEOUT` | 日誌，見[日誌](logging.md) |
 
 `npu_delegate_path` 沒有介面，也不能透過 WebSocket 修改，只能用 `PRESENCE_NPU_DELEGATE` 設定。
 
-### 選用的 CPU 部署設定
+### 使用 .env 啟動
 
-可用 [`.env.example`](../../.env.example) 集中管理 ONNX 設定。範例會讓每個視覺模型使用 CPU、2 個執行緒並關閉 spinning。
-如果已經有 `.env`，請把範例中的 ONNX 變數合併到現有檔案。
+可用 [`.env.example`](../../.env.example) 管理選用的 ONNX 設定和雲端 API key。如果已有 `.env`，把需要的變數加到
+現有檔案即可。要使用 AssemblyAI 或 Jev，分別在本機檔案填入 `ASSEMBLYAI_API_KEY` 或 `TYPESAFE_API_KEY`。
+端點網址是選填項目。
 
 ```sh
 cp -n .env.example .env
 uv run --env-file .env presencekit
 ```
 
-在 server 啟動時明確指定要載入的檔案。`.env` 由 Git 忽略。未設定這些變數時，沿用 CPU 提供者，由 ONNX Runtime 決定
-執行緒數和 spinning 行為。PureSound 繼續使用獨立的單執行緒 CPU session。
+`.env` 由 Git 忽略。也可以在 **設定 → 語音辨識** 或 **設定 → 使用者比對** 手動輸入 key，手動輸入在目前程序優先。
+按清除會停用目前程序的 key，下次用 `.env` 啟動時會再載入檔案裡的值。
+
+### 選用的 CPU 部署設定
+
+範例的 ONNX 設定讓每個視覺模型使用 CPU、2 個執行緒並關閉 spinning。未設定 ONNX 變數時，沿用 CPU 提供者，
+由 ONNX Runtime 決定執行緒數和 spinning 行為。PureSound 繼續使用獨立的單執行緒 CPU session。
 
 ## 參數表
 
