@@ -411,6 +411,8 @@ I18N["en"] = {
   "s.intent_weighted_presence.h": "When on (probabilistic mode), a participant's presence probability is multiplied by their intent, so low-intent participants keep the conversation alive less.",
   "s.iou_match": "Overlap threshold (IoU)",
   "s.iou_match.h": "How much two boxes in consecutive frames must overlap to count as \"the same position\".",
+  "s.iso_dry_blend": "Isolated voice share (dry blend)",
+  "s.iso_dry_blend.h": "Share of the isolated voice before the vision cross-check. The rest is time-aligned microphone audio. 0.9 means 90%. Changing the value briefly resets the isolation stream.",
   "s.iso_onset_guard": "Onset guard",
   "s.iso_onset_guard.h": "Built into PureSound: keeps the original audio for the first second of each utterance and switches to the isolated voice once speech continues, so the first word is not swallowed.",
   "s.iso_reset_on_change": "Reset on speaker change",

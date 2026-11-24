@@ -411,6 +411,8 @@ I18N["zh-TW"] = {
   "s.intent_weighted_presence.h": "開啟後（機率模式），參與者的在場機率乘上意圖比例：意圖低的參與者比較撐不住對話。",
   "s.iou_match": "位置重疊門檻 IoU",
   "s.iou_match.h": "前後兩張畫面的框重疊多少算「位置一樣」。",
+  "s.iso_dry_blend": "人聲分離比例（dry blend）",
+  "s.iso_dry_blend.h": "影像交叉確認前的分離人聲比例，其餘混入時間對齊的麥克風原聲。0.9 代表 90%。調整後會短暫重置分離串流。",
   "s.iso_onset_guard": "起音保護（onset guard）",
   "s.iso_onset_guard.h": "PureSound 內建：每段說話的前 1 秒先保留原始聲音，確認有人持續說話後才換成分離後的聲音，減少開頭字被吃掉。",
   "s.iso_reset_on_change": "換人時重置",

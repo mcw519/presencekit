@@ -41,11 +41,14 @@ uv run python scripts/fetch_puresound_model.py --clone     # 或 --from /path/to
 注意：不帶 `--extra puresound` 的 `uv sync` 會再把它移除。沒有 SDK 或模型時，選 `puresound` 會在音訊面板顯示原因，
 狀態機繼續用瀏覽器 VAD。
 
-## 第 1 步：分離（上游程式碼原樣使用）
+## 第 1 步：分離與原聲混音
 
 瀏覽器用 `AudioWorklet` 取麥克風聲音，重取樣到 16 kHz 單聲道，每 20 ms（320 個樣本）經 WebSocket 送出一塊。
-伺服器完全照上游的方式執行 PureSound 串流處理：STFT 512 / hop 10 ms、前瞻 30 ms，輸出 `0.9 × 增強 + 0.1 × 對齊的原聲`。
-演算法延遲 52–62 ms。輸出已驗證和上游執行環境逐位元相同。
+PureSound 使用 STFT 512、10 ms hop 與 30 ms 前瞻。預設 `iso_dry_blend = 0.9`，輸出 `0.9 × 增強 + 0.1 × 對齊的原聲`，
+與上游預設逐樣本一致。演算法延遲 52–62 ms。
+
+在 **設定 → 音訊** 選擇 **PureSound** 後，可把 **人聲分離比例（dry blend）** 調整為 0.01–1.00。
+新值會用於影像交叉確認前的分離輸出（`vi.wav`），套用時會短暫重置分離串流。
 
 ## 第 2 步：乾淨 VAD
 
@@ -66,7 +69,7 @@ uv run python scripts/fetch_puresound_model.py --clone     # 或 --from /path/to
 | 有 | – | ROI 內沒人 | `leak` 漏音 | 壓到 `xcheck_floor_db`（−40 dB） | 否 |
 | 有 | – | 所有人都在 `near_range` 外 | `false_accept` 誤收 | 壓低 | 否 |
 | 有 | – | 有人在 `near_range` 內 | `agree` 一致 | 不變 | 是 |
-| 無 | 有 | 有人在 `near_range` 內 | `false_reject` 漏收 | 分離比例降到 `xcheck_recover_mix`（0.3），其餘是對齊的原聲 | 是 |
+| 無 | 有 | 有人在 `near_range` 內 | `false_reject` 漏收 | 分離比例上限為 `xcheck_recover_mix`（0.3），其餘是對齊的原聲 | 是 |
 | 其他 | | | `silence` 安靜 | 不變 | 否 |
 | 任何 | | 影像不確定 | `acoustic_only` 只看聲音 | PureSound 原樣輸出 | = 乾淨 VAD |
 

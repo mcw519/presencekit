@@ -50,24 +50,31 @@ def _shared_session(onnx_path: Path, threads: int = 1):
 class Isolator:
     """PureSound SDK ``StftFrameOrtProcessor`` + a vision-controlled extra dry mix.
 
-    The SDK applies the manifest's ``dry_blend`` (0.9 enhanced / 0.1 input, latency-aligned) and the
-    optional onset guard exactly as upstream. The SDK has no runtime mix setter, so a lower enhanced
-    share ``mix`` < 0.9 is produced here as ``a*sdk_out + (1-a)*dry`` with ``a = mix/0.9`` and the dry
-    input aligned by the same ``streaming_delay_frames*hop``. At ``mix = 0.9`` ``a = 1`` and the output
-    is the SDK's, sample for sample.
+    The SDK applies the configured ``dry_blend`` and optional onset guard. A lower enhanced share
+    ``mix`` is produced here as ``a*sdk_out + (1-a)*dry`` where ``a = mix/base_mix`` and the dry
+    input is delay-aligned. At ``mix = base_mix`` the adapter returns the SDK's output unchanged.
     """
 
-    def __init__(self, model_dir: Path = MODELS_DIR, onset_guard: bool = False, guard_params: dict | None = None):
+    def __init__(
+        self,
+        model_dir: Path = MODELS_DIR,
+        onset_guard: bool = False,
+        guard_params: dict | None = None,
+        *,
+        dry_blend: float | None = None,
+    ):
         from puresound_streaming import StftFrameOrtProcessor, StreamingRuntimeConfig
 
         onnx = model_dir / f"{MODEL_NAME}.onnx"
         self.manifest = json.loads((model_dir / f"{MODEL_NAME}.json").read_text(encoding="utf-8"))
         man = dict(self.manifest)
+        if dry_blend is not None:
+            man["recommended_inference"] = {**(man.get("recommended_inference") or {}), "dry_blend": dry_blend}
         if onset_guard:
             man["onset_guard"] = dict(guard_params or {"t_arm_s": 1.0})
         self.config = StreamingRuntimeConfig.from_manifest(man)
         self.proc = StftFrameOrtProcessor(self.config, _shared_session(onnx))
-        self.base_mix = float(self.config.dry_blend)  # 0.9
+        self.base_mix = float(self.config.dry_blend)
         self.delay = self.config.streaming_delay_frames * self.config.hop_length  # 480 samples = 30 ms
         self.vad_heads = list(self.config.extra_output_names)  # v2: none -> energy VAD on the output
         self.reset()
@@ -145,7 +152,7 @@ LABELS = ("agree", "leak", "false_reject", "false_accept", "silence", "acoustic_
 
 @dataclass
 class Adjust:
-    """Per-block decision: enhanced share ``mix`` (<= manifest dry_blend), target output ``gain`` (linear),
+    """Per-block decision: enhanced share ``mix`` (<= configured dry_blend), target output ``gain`` (linear),
     corrected ``speech`` for the state machine, and the decision ``label`` (one of :data:`LABELS`)."""
 
     mix: float
@@ -246,8 +253,9 @@ class AudioStream:
 
     def __init__(self, cfg, isolator_factory=None, adjuster=None):
         self.cfg = cfg
-        self.iso = (isolator_factory or (lambda: Isolator(onset_guard=cfg.iso_onset_guard)))()
-        self._guard_cfg = cfg.iso_onset_guard
+        self._isolator_factory = isolator_factory
+        self._iso_settings = (cfg.iso_onset_guard, cfg.iso_dry_blend)
+        self.iso = self._make_isolator(*self._iso_settings)
         self.vad = CleanVAD()  # on the enhanced signal
         self.raw_vad = CleanVAD()  # on the raw input (for false_reject)
         self.adjuster = adjuster or CrossCheckAdjuster()
@@ -267,6 +275,11 @@ class AudioStream:
         self.clean_db = -100.0
         self._group_sig = None
         self._ng_t = -1.0
+
+    def _make_isolator(self, onset_guard: bool, dry_blend: float):
+        if self._isolator_factory is not None:
+            return self._isolator_factory()
+        return Isolator(onset_guard=onset_guard, dry_blend=dry_blend)
 
     def on_vision(self, snap: dict | None, now: float) -> bool:
         """Reset the stream on NEW_GROUP / session change / participant set change. Returns True if reset."""
@@ -292,9 +305,14 @@ class AudioStream:
         c = self.cfg
         for v in (self.vad, self.raw_vad):
             v.margin_db, v.min_db, v.hang = c.clean_vad_margin_db, c.clean_vad_min_db, c.clean_vad_hang
-        if c.iso_onset_guard != self._guard_cfg:  # guard toggled -> rebuild processor
-            self._guard_cfg = c.iso_onset_guard
-            self.iso = Isolator(onset_guard=self._guard_cfg)
+        settings = (c.iso_onset_guard, c.iso_dry_blend)
+        if settings != self._iso_settings:
+            # A fresh processor starts the dry history at the correct stream index, including after 100% isolation.
+            iso = self._make_isolator(*settings)
+            iso.resets = self.iso.resets + 1
+            self.iso, self._iso_settings = iso, settings
+            self.mix = min(self.mix, iso.base_mix)
+            self._pending = np.zeros(0, np.float32)
 
     def process(self, pcm16: bytes, snap: dict | None, now: float, vis_age: float = 0.0) -> tuple[bytes, bool]:
         """One chunk. The decision uses the VADs up to the previous block (<= one chunk, 20 ms, of lag)."""

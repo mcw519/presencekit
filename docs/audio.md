@@ -43,12 +43,15 @@ The model (`dpcrn_curriculum_v2`, 4.9 MB + manifest) is copied into `models/` on
 PureSound catalogue. Note that a plain `uv sync` removes the extra again. If the SDK or model is missing,
 choosing `puresound` shows the reason in the audio panel and the state machine keeps using the browser VAD.
 
-## Step 1: isolation (unchanged upstream code)
+## Step 1: isolation and dry blend
 
 The browser captures the microphone with an `AudioWorklet`, resamples to 16 kHz mono and sends 20 ms chunks
-(320 samples) over the WebSocket. The server runs PureSound's streaming processor exactly as upstream ships it:
-STFT 512 / hop 10 ms, 30 ms look-ahead, output `0.9 × enhanced + 0.1 × aligned input`. Algorithmic latency is
-52–62 ms. Outputs were verified to be bit-identical with the upstream runtime.
+(320 samples) over the WebSocket. PureSound uses STFT 512, a 10 ms hop, and 30 ms look-ahead. At the default
+`iso_dry_blend = 0.9`, it outputs `0.9 × enhanced + 0.1 × aligned input`, matching the upstream default
+sample for sample. Algorithmic latency is 52–62 ms.
+
+In **Settings → Audio**, choose **PureSound** to adjust **Isolated voice share (dry blend)** from 0.01 to 1.00.
+The new value applies to the isolation output (`vi.wav`) before the vision cross-check and briefly resets the stream.
 
 ## Step 2: the clean VAD
 
@@ -71,7 +74,7 @@ person was seen during that time, which protects the first syllable of a near sp
 | yes | – | nobody in the ROI | `leak` | attenuated to `xcheck_floor_db` (−40 dB) | no |
 | yes | – | everyone beyond `near_range` | `false_accept` | attenuated | no |
 | yes | – | someone within `near_range` | `agree` | unchanged | yes |
-| no | yes | someone within `near_range` | `false_reject` | isolated share lowered to `xcheck_recover_mix` (0.3), rest is aligned raw input | yes |
+| no | yes | someone within `near_range` | `false_reject` | isolated share capped at `xcheck_recover_mix` (0.3), rest is aligned raw input | yes |
 | otherwise | | | `silence` | unchanged | no |
 | any | | vision uncertain | `acoustic_only` | PureSound output as is | = clean VAD |
 

@@ -58,6 +58,21 @@ def test_lower_mix_adds_aligned_dry():
     assert np.abs(half[:n] - np.clip(0.5 * full[:n] + 0.5 * dry, -1, 1)).max() < 1e-5
 
 
+@needs_ps
+def test_dry_blend_adjusts_isolation_before_recording_the_vi_track():
+    x = speechlike(0.8)
+    pure = audio.Isolator(dry_blend=1.0)
+    enhanced = pure.process(x, pure.base_mix)
+    blended = audio.Isolator(dry_blend=0.4)
+    out = blended.process(x, blended.base_mix)
+    assert blended.config.dry_blend == blended.proc.dry_blend == 0.4
+    aligned = slice(blended.delay, None)
+    expected = np.clip(0.4 * enhanced[aligned] + 0.6 * blended.last_ref[aligned], -1, 1)
+    assert out.size > blended.delay
+    np.testing.assert_allclose(blended.last_vi[aligned], expected, atol=1e-6, rtol=0)
+    np.testing.assert_array_equal(out, blended.last_vi)
+
+
 # ---------------------------------------------------------------- glue logic (no SDK needed)
 class FakeIso:
     base_mix, delay, vad_heads = 0.9, 480, []
@@ -73,6 +88,34 @@ class FakeIso:
 
     def process(self, x, mix):
         return x * mix
+
+
+def test_stream_uses_dry_blend_changes_at_the_next_chunk(monkeypatch):
+    def make_isolator(*, onset_guard, dry_blend):
+        assert not onset_guard
+        iso = FakeIso()
+        iso.base_mix = dry_blend
+        return iso
+
+    monkeypatch.setattr(audio, "Isolator", make_isolator)
+    cfg = Config(iso_dry_blend=1.0)
+    stream = AudioStream(cfg)
+    first = stream.iso
+    pcm = np.full(320, 1000, dtype="<i2").tobytes()
+    stream.process(pcm, None, 0.0)
+    assert stream.iso is first and stream.meta()["mix"] == 1.0
+
+    assert cfg.update({"iso_dry_blend": 0.2}) == []
+    stream.process(pcm, None, 0.02)
+    assert stream.iso is not first and stream.iso.resets == 1
+    assert stream.iso.base_mix == stream.meta()["mix"] == 0.2
+    first = stream.iso
+    stream.process(pcm, None, 0.04)
+    assert stream.iso is first
+    view = audio.VisionView(True, True, True, False)
+    assert stream.adjuster.decide(view, False, True, cfg, first.base_mix).mix == 0.2
+
+    assert cfg.update({"iso_dry_blend": 0}) == ["iso_dry_blend clamped to 0.01"]
 
 
 def snap(session, parts, log=()):

@@ -224,6 +224,7 @@ uv run --env-file .env presencekit
 | `audio_pipeline` | `energy_vad` | `energy_vad` / `puresound` | **音訊管線** *(模式／開關)* — 瀏覽器 VAD：用瀏覽器端的音量 VAD 判斷說話（目前預設）。PureSound：麥克風音訊（16 kHz PCM）串流到伺服器，用 PureSound 的串流人聲分離（dpcrn_curriculum_v2）去掉背景聲音，再用「乾淨音軌」判斷說話。需要伺服器安裝 puresound 套件與模型；沒有的話會在「乾淨音軌」面板顯示原因，並繼續用瀏覽器 VAD。 |
 | `onset_entry_only` | on | on / off | **只在「進場」時開始對話** — 開啟時（PureSound 模式），對話只會在「乾淨音軌偵測到說話開頭」而且「畫面中有一位靠近的人」同時發生時開始；只有人經過、或只有聲音（電視、遠處的人）都不會開始。 |
 | `onset_needs_vision` | on | on / off | **說話需搭配畫面** — PureSound 模式下，說話要「開始對話」或「從 AWAY 回來」時，最近 1.5 秒內畫面中必須有一位靠近的人（影像不確定時例外，改成只看聲音）。 |
+| `iso_dry_blend` | 0.9 | 0.01 – 1 | **人聲分離比例（dry blend）** — 影像交叉確認前的分離人聲比例，其餘混入時間對齊的麥克風原聲。0.9 代表 90%。調整後會短暫重置分離串流。 |
 | `iso_onset_guard` | off | on / off | **起音保護（onset guard）** — PureSound 內建：每段說話的前 1 秒先保留原始聲音，確認有人持續說話後才換成分離後的聲音，減少開頭字被吃掉。 |
 | `iso_reset_on_change` | on | on / off | **換人時重置** *(進階)* — NEW_GROUP、新的對話或參與者換人時，重置人聲分離的串流狀態（也重新啟動起音保護）。 |
 | `clean_vad_margin_db` | 10 | 3 – 30 | **乾淨 VAD 門檻** — 分離後的聲音比噪音底高出多少 dB 才算說話。越小越靈敏。 |
