@@ -117,9 +117,14 @@ When the group changes (NEW_GROUP, a new session, or a different participant set
 - **Monitor**: the audio panel can play the clean or raw stream back to you. Use headphones. Monitoring adds a
   small jitter buffer (≈ 80 ms) and your network round trip; decisions are made on the server and are not delayed
   by it.
-- **Recording** (off by default, started by the user): three aligned 16 kHz WAV tracks (`raw`, `vi` = isolation
-  output, `out` = final output after the cross-check) plus a JSON timeline of decisions and settings, zipped and
-  downloaded **to the user's own computer**. Up to 10 minutes. The server writes nothing; video is never recorded.
+- **Video recording**: start the camera, then click **Record video**. The video includes the camera, face and
+  body boxes, skeletons, and visible ROIs. It uses the microphone with browser VAD or the final cross-checked
+  audio with PureSound. Stop to play it in the page or download it as MP4 or WebM, depending on the browser.
+  The browser records up to 10 minutes per clip and keeps the preview in page memory.
+- **Video and audio bundle**: for a PureSound recording, choose **Download video and audio tracks (ZIP)**.
+  It contains the same video, three sample-aligned 16 kHz WAV tracks (`raw` for the microphone, `vi` for the
+  isolated voice, and `out` for the final output), and a JSON decision timeline. The WAVs share a sample clock
+  and the video follows the browser clock.
 
 ## Performance
 

@@ -76,6 +76,8 @@
 #recInd{display:none;align-items:center;height:26px;padding:0 10px;color:var(--bad);background:var(--bad-soft);border:1px solid var(--bad);
   font-family:var(--font-mono);border-radius:var(--radius-pill);font-size:var(--text-small);font-weight:500}
 #recInd.on{display:inline-flex;animation:pulse 1.2s infinite}
+.recording-preview{margin-block:10px}
+.recording-preview video{display:block;width:100%;max-height:420px;object-fit:contain;margin-bottom:8px;border-radius:var(--radius-control);background:var(--nav)}
 
 /* Settings drawer = playground Inspector as a right drawer. */
 .inspector-backdrop{position:fixed;inset:0;background:var(--backdrop);opacity:0;pointer-events:none;transition:opacity .2s;z-index:45}

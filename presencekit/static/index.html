@@ -49,7 +49,7 @@
         <p class="page-desc" data-i18n="page.desc">結合語音與臉部追蹤，判斷對話中的人何時離開。</p>
       </div>
       <div class="page-actions">
-        <span id="recInd" data-i18n="rec.badge">● 錄音中</span>
+        <span id="recInd" data-i18n="rec.badge">● 錄影中</span>
         <span class="chip" id="cam" data-i18n="cam.off">鏡頭/麥克風 關</span>
         <button class="button button-secondary" id="openSet" type="button" data-i18n="nav.settings">設定</button>
         <button class="button button-primary" id="start" type="button" data-i18n="btn.start">開始</button>
@@ -94,7 +94,7 @@
           </div>
         </div>
         <div class="panel panel-pad" id="aCard">
-          <div class="panel-title"><div><h2 data-i18n="a.title">監聽・錄音・時間軸</h2><p class="panel-help" id="aSt">—</p></div></div>
+          <div class="panel-title"><div><h2 data-i18n="a.title">監聽・錄影・時間軸</h2><p class="panel-help" id="aSt">—</p></div></div>
           <div class="monitor-control" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px">
             <span class="quiet" style="font-size:var(--text-small)" data-i18n="a.monitor">監聽</span>
             <div class="segmented" id="monBtns" role="radiogroup" aria-label="監聽" data-i18n-aria-label="a.monitor">
@@ -102,9 +102,16 @@
               <button type="button" role="radio" data-m="raw" aria-checked="false" data-i18n="lane.raw">原始</button>
               <button type="button" role="radio" data-m="clean" aria-checked="false" data-i18n="a.mon_clean">乾淨</button>
             </div>
-            <button class="button button-secondary button-small" id="recBtn" type="button" data-i18n="rec.start">錄音</button>
+            <button class="button button-secondary button-small" id="recBtn" type="button" data-i18n="rec.start">錄影</button>
           </div>
-          <p class="toggle-hint" id="recSt" data-i18n="rec.help">選用・預設關閉：三軌 raw / vi / out 只存在瀏覽器記憶體，停止後下載到你的電腦，伺服器不存任何聲音。需要 PureSound 管線。最長 10 分鐘。</p>
+          <p class="toggle-hint" id="recSt" data-i18n="rec.help">錄下鏡頭、偵測框和目前管線的音訊。影片只在瀏覽器記憶體，最長 10 分鐘。</p>
+          <div class="recording-preview" id="recResult" hidden>
+            <video id="recVideo" controls playsinline preload="metadata" aria-label="錄影預覽" data-i18n-aria-label="rec.preview"></video>
+            <div class="btns">
+              <a class="button button-secondary button-small" id="recDownload" download data-i18n="rec.download">下載影片</a>
+              <button class="button button-secondary button-small" id="recDownloadZip" type="button" data-i18n="rec.download_zip" hidden>下載影片與音軌（ZIP）</button>
+            </div>
+          </div>
           <p class="form-note is-error" style="min-height:0" data-i18n="a.headphones">⚠ 監聽請戴耳機，否則喇叭聲音會被麥克風收進去（回授）。每次開啟頁面都是靜音。</p>
           <p class="scope-label" data-i18n="a.timeline">時間軸（最近 30 秒）：原始 VAD／乾淨 VAD／算說話／判斷／狀態，橘線＝P(group)</p>
           <canvas id="tl" class="scope" style="width:100%;height:84px;display:block;border-radius:var(--radius-control) var(--radius-control) 0 0"></canvas>
@@ -215,6 +222,7 @@
 <script src="/static/js/settings.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/audio.js"></script>
+<script src="/static/js/recording.js"></script>
 <script src="/static/js/panels.js"></script>
 <script src="/static/js/main.js"></script>
 </body></html>

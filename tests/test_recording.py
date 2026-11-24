@@ -1,7 +1,9 @@
-"""Optional client-side recording: aligned raw / vi / out streams; the server stores nothing."""
+"""Browser video recording and the existing aligned-audio WebSocket protocol."""
 
 import os
+import shutil
 import struct
+import subprocess
 import tempfile
 from pathlib import Path
 
@@ -100,6 +102,11 @@ def test_ws_record_streams_three_tracks_and_writes_no_files(tmp_path, monkeypatc
 def test_recording_is_client_side_opt_in():
     html = ui_source()
     assert "let rec=null" in html and "REC_MAX_S=600" in html  # off by default, 10 min cap
-    assert "_raw.wav" in html and "_vi.wav" in html and "_out.wav" in html
+    assert '<video id="recVideo" controls' in html and 'id="recDownload" download' in html
     src = server_source()
     assert "wave" not in src and "open(" not in src  # the server has no file writer for audio
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_video_recording_lifecycle_and_composite():
+    subprocess.run(["node", str(Path(__file__).parent / "js" / "video_recording.js")], check=True)

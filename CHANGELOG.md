@@ -35,6 +35,9 @@ demo. Tracking, presence and state-machine behaviour, wire protocol and settings
   an install hint.
 - **Web UI / diagnostics**: Resources shows an ONNX Runtime row (version, accelerator, providers);
   `VisionPipeline.info()` adds `onnxruntime` and `ort_providers`.
+- **Video recording**: Record the camera, detection overlays, and the current pipeline's audio together, then
+  preview or download the clip in the browser. A PureSound recording can also export the video with three
+  aligned WAV tracks and the decision timeline in a ZIP.
 - **Fixes** (from a code review): model loads and first-use downloads (pose, int8 SFace) no longer run while the
   process-wide vision lock is held, and downloads have a timeout; `audio.MODELS_DIR` ignored `PRESENCE_MODEL_DIR`;
   the YuNet OpenCV and MoveNet TFLite files are now checksum-verified; Haar-fallback rows reported a fully profile
