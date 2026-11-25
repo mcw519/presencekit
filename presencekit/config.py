@@ -116,6 +116,7 @@ class Config:
     present_max_silence: float = 0.0  # vision mode: cap on silence with people present (0 = off)
     # --- audio (v0.9.0, see docs/audio.md) ---
     audio_pipeline: str = "energy_vad"  # energy_vad (browser VAD) | puresound (server isolation + clean VAD)
+    iso_dry_blend: float = 0.9  # isolated voice share before the vision cross-check
     iso_onset_guard: bool = False  # PureSound onset guard (input untouched until 1 s of sustained speech)
     iso_reset_on_change: bool = True  # reset isolation state on NEW_GROUP / session / participant change
     onset_needs_vision: bool = True  # clean speech starts/returns only with a visible near candidate
@@ -340,6 +341,7 @@ RANGES = {
     "crop_margin": (0.0, 0.5, float),
     "max_width": (96, 1920, int),
     "audio_pipeline": (("energy_vad", "puresound"), None, str),
+    "iso_dry_blend": (0.01, 1.0, float),
     "iso_onset_guard": (False, True, bool),
     "iso_reset_on_change": (False, True, bool),
     "onset_needs_vision": (False, True, bool),
@@ -492,6 +494,7 @@ GROUPS: dict[str, tuple[str, ...]] = {
     ),
     "audio": (
         "audio_pipeline",
+        "iso_dry_blend",
         "iso_onset_guard",
         "iso_reset_on_change",
         "clean_vad_margin_db",

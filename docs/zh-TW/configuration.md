@@ -74,23 +74,31 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | `PRESENCE_FACE_EMBEDDER=hist` | 不載入 SFace，改用 HSV 直方圖備援 |
 | `PRESENCE_NPU_DELEGATE` | `embed_backend = npu` 的外部 TFLite delegate 函式庫（只能在伺服器端設定） |
 | `ASSEMBLYAI_API_KEY` | 選用語音辨識的 key |
-| `TYPESAFE_API_KEY` | 選用 re-ID 服務的 key；`REID_JEV_URL` 可以改端點 |
+| `ASSEMBLYAI_WS_URL` | 選用的 AssemblyAI WebSocket 端點覆寫 |
+| `TYPESAFE_API_KEY` | 選用 Typesafe Jev re-ID 服務的 key |
+| `REID_JEV_URL` | 選用的 Typesafe Jev 端點覆寫 |
 | `PRESENCE_LOG_*`、`PRESENCE_EVENT_BUFFER`、`PRESENCE_VISION_LOCK_TIMEOUT` | 日誌，見[日誌](logging.md) |
 
 `npu_delegate_path` 沒有介面，也不能透過 WebSocket 修改，只能用 `PRESENCE_NPU_DELEGATE` 設定。
 
-### 選用的 CPU 部署設定
+### 使用 .env 啟動
 
-可用 [`.env.example`](../../.env.example) 集中管理 ONNX 設定。範例會讓每個視覺模型使用 CPU、2 個執行緒並關閉 spinning。
-如果已經有 `.env`，請把範例中的 ONNX 變數合併到現有檔案。
+可用 [`.env.example`](../../.env.example) 管理選用的 ONNX 設定和雲端 API key。如果已有 `.env`，把需要的變數加到
+現有檔案即可。要使用 AssemblyAI 或 Jev，分別在本機檔案填入 `ASSEMBLYAI_API_KEY` 或 `TYPESAFE_API_KEY`。
+端點網址是選填項目。
 
 ```sh
 cp -n .env.example .env
 uv run --env-file .env presencekit
 ```
 
-在 server 啟動時明確指定要載入的檔案。`.env` 由 Git 忽略。未設定這些變數時，沿用 CPU 提供者，由 ONNX Runtime 決定
-執行緒數和 spinning 行為。PureSound 繼續使用獨立的單執行緒 CPU session。
+`.env` 由 Git 忽略。也可以在 **設定 → 語音辨識** 或 **設定 → 使用者比對** 手動輸入 key，手動輸入在目前程序優先。
+按清除會停用目前程序的 key，下次用 `.env` 啟動時會再載入檔案裡的值。
+
+### 選用的 CPU 部署設定
+
+範例的 ONNX 設定讓每個視覺模型使用 CPU、2 個執行緒並關閉 spinning。未設定 ONNX 變數時，沿用 CPU 提供者，
+由 ONNX Runtime 決定執行緒數和 spinning 行為。PureSound 繼續使用獨立的單執行緒 CPU session。
 
 ## 參數表
 
@@ -216,6 +224,7 @@ uv run --env-file .env presencekit
 | `audio_pipeline` | `energy_vad` | `energy_vad` / `puresound` | **音訊管線** *(模式／開關)* — 瀏覽器 VAD：用瀏覽器端的音量 VAD 判斷說話（目前預設）。PureSound：麥克風音訊（16 kHz PCM）串流到伺服器，用 PureSound 的串流人聲分離（dpcrn_curriculum_v2）去掉背景聲音，再用「乾淨音軌」判斷說話。需要伺服器安裝 puresound 套件與模型；沒有的話會在「乾淨音軌」面板顯示原因，並繼續用瀏覽器 VAD。 |
 | `onset_entry_only` | on | on / off | **只在「進場」時開始對話** — 開啟時（PureSound 模式），對話只會在「乾淨音軌偵測到說話開頭」而且「畫面中有一位靠近的人」同時發生時開始；只有人經過、或只有聲音（電視、遠處的人）都不會開始。 |
 | `onset_needs_vision` | on | on / off | **說話需搭配畫面** — PureSound 模式下，說話要「開始對話」或「從 AWAY 回來」時，最近 1.5 秒內畫面中必須有一位靠近的人（影像不確定時例外，改成只看聲音）。 |
+| `iso_dry_blend` | 0.9 | 0.01 – 1 | **人聲分離比例（dry blend）** — 影像交叉確認前的分離人聲比例，其餘混入時間對齊的麥克風原聲。0.9 代表 90%。調整後會短暫重置分離串流。 |
 | `iso_onset_guard` | off | on / off | **起音保護（onset guard）** — PureSound 內建：每段說話的前 1 秒先保留原始聲音，確認有人持續說話後才換成分離後的聲音，減少開頭字被吃掉。 |
 | `iso_reset_on_change` | on | on / off | **換人時重置** *(進階)* — NEW_GROUP、新的對話或參與者換人時，重置人聲分離的串流狀態（也重新啟動起音保護）。 |
 | `clean_vad_margin_db` | 10 | 3 – 30 | **乾淨 VAD 門檻** — 分離後的聲音比噪音底高出多少 dB 才算說話。越小越靈敏。 |

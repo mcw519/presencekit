@@ -41,11 +41,14 @@ uv run python scripts/fetch_puresound_model.py --clone     # 或 --from /path/to
 注意：不帶 `--extra puresound` 的 `uv sync` 會再把它移除。沒有 SDK 或模型時，選 `puresound` 會在音訊面板顯示原因，
 狀態機繼續用瀏覽器 VAD。
 
-## 第 1 步：分離（上游程式碼原樣使用）
+## 第 1 步：分離與原聲混音
 
 瀏覽器用 `AudioWorklet` 取麥克風聲音，重取樣到 16 kHz 單聲道，每 20 ms（320 個樣本）經 WebSocket 送出一塊。
-伺服器完全照上游的方式執行 PureSound 串流處理：STFT 512 / hop 10 ms、前瞻 30 ms，輸出 `0.9 × 增強 + 0.1 × 對齊的原聲`。
-演算法延遲 52–62 ms。輸出已驗證和上游執行環境逐位元相同。
+PureSound 使用 STFT 512、10 ms hop 與 30 ms 前瞻。預設 `iso_dry_blend = 0.9`，輸出 `0.9 × 增強 + 0.1 × 對齊的原聲`，
+與上游預設逐樣本一致。演算法延遲 52–62 ms。
+
+在 **設定 → 音訊** 選擇 **PureSound** 後，可把 **人聲分離比例（dry blend）** 調整為 0.01–1.00。
+新值會用於影像交叉確認前的分離輸出（`vi.wav`），套用時會短暫重置分離串流。
 
 ## 第 2 步：乾淨 VAD
 
@@ -66,7 +69,7 @@ uv run python scripts/fetch_puresound_model.py --clone     # 或 --from /path/to
 | 有 | – | ROI 內沒人 | `leak` 漏音 | 壓到 `xcheck_floor_db`（−40 dB） | 否 |
 | 有 | – | 所有人都在 `near_range` 外 | `false_accept` 誤收 | 壓低 | 否 |
 | 有 | – | 有人在 `near_range` 內 | `agree` 一致 | 不變 | 是 |
-| 無 | 有 | 有人在 `near_range` 內 | `false_reject` 漏收 | 分離比例降到 `xcheck_recover_mix`（0.3），其餘是對齊的原聲 | 是 |
+| 無 | 有 | 有人在 `near_range` 內 | `false_reject` 漏收 | 分離比例上限為 `xcheck_recover_mix`（0.3），其餘是對齊的原聲 | 是 |
 | 其他 | | | `silence` 安靜 | 不變 | 否 |
 | 任何 | | 影像不確定 | `acoustic_only` 只看聲音 | PureSound 原樣輸出 | = 乾淨 VAD |
 
@@ -102,12 +105,16 @@ PureSound 管線運作時，**修正後**的說話旗標取代瀏覽器 VAD：
 
 人換了的時候（NEW_GROUP、新 session、參與者換成另一組），會重置分離狀態（`iso_reset_on_change`），約 32 ms 沒有輸出。
 
-## 監聽與錄音
+## 監聽與錄影
 
 - **監聽**：音訊面板可以播放乾淨或原始音軌給你聽，請戴耳機。監聽會多一個小的 jitter buffer（約 80 ms）和網路往返時間；
   判斷在伺服器上完成，不受影響。
-- **錄音**（預設關閉，由使用者自己按）：三軌對齊的 16 kHz WAV（`raw` 原聲、`vi` 分離輸出、`out` 交叉確認後的最終輸出），
-  加上判斷與設定的 JSON 時間軸，打包成 zip 下載到**使用者自己的電腦**。最長 10 分鐘。伺服器不寫任何東西；影像從不錄製。
+- **錄影**：啟動相機後按「錄影」，會錄下鏡頭、臉部與身體偵測框、骨架，以及畫面上顯示的 ROI。瀏覽器 VAD 模式使用麥克風音訊，
+  PureSound 模式使用交叉確認後的最終輸出。按「停止錄影」可在頁面直接播放，或下載瀏覽器支援的 MP4 或 WebM。
+  每段最長 10 分鐘，預覽影片留在頁面記憶體。
+- **影片與音軌下載**：PureSound 錄影結束後，可按「下載影片與音軌（ZIP）」。壓縮檔包含同一部影片、三軌樣本對齊的
+  16 kHz WAV（`raw` 麥克風原聲、`vi` 人聲分離後、`out` 交叉確認後的最終輸出），以及 JSON 判斷時間軸。
+  三軌 WAV 使用同一取樣時鐘，影片使用瀏覽器時間。
 
 ## 效能
 

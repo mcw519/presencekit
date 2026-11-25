@@ -78,25 +78,34 @@ it and list only the differences. *Low power* changes only performance settings,
 | `PRESENCE_FACE_EMBEDDER=hist` | Do not load SFace; use the HSV histogram fallback |
 | `PRESENCE_NPU_DELEGATE` | External TFLite delegate library for `embed_backend = npu` (server-side only) |
 | `ASSEMBLYAI_API_KEY` | Key for the optional speech recognition |
-| `TYPESAFE_API_KEY` | Key for the optional re-ID service; `REID_JEV_URL` overrides its endpoint |
+| `ASSEMBLYAI_WS_URL` | Optional AssemblyAI WebSocket endpoint override |
+| `TYPESAFE_API_KEY` | Key for the optional Typesafe Jev re-ID service |
+| `REID_JEV_URL` | Optional Typesafe Jev endpoint override |
 | `PRESENCE_LOG_*`, `PRESENCE_EVENT_BUFFER`, `PRESENCE_VISION_LOCK_TIMEOUT` | Logging, see [Logging](logging.md) |
 
 `npu_delegate_path` has no UI and cannot be changed over the WebSocket; it is set only from
 `PRESENCE_NPU_DELEGATE`.
 
-### Optional CPU deployment settings
+### Loading settings from .env
 
-Use [`.env.example`](../.env.example) to keep the ONNX settings together. It selects the CPU provider, two threads
-per vision model and spinning disabled. If you already have a `.env` file, merge the ONNX variables into it.
+Use [`.env.example`](../.env.example) to manage the optional ONNX profile and cloud API keys. If you already
+have a `.env` file, add the entries you need. Fill `ASSEMBLYAI_API_KEY` and `TYPESAFE_API_KEY` in your local
+file to use the corresponding services. The URL overrides are optional.
 
 ```sh
 cp -n .env.example .env
 uv run --env-file .env presencekit
 ```
 
-Pass the file explicitly when starting the server. Git ignores `.env`. Leaving the variables unset uses the CPU
-provider, automatic thread count and ONNX Runtime spinning default. PureSound continues to use its dedicated
-single-thread CPU session.
+Git ignores `.env`. In the browser you can also enter the keys under **Settings → Speech recognition** and
+**Settings → Re-ID**. A manual entry takes precedence for the running server. Clearing a key disables it in
+that process. A restart with `.env` loads the file's value again.
+
+### Optional CPU deployment settings
+
+The example ONNX profile selects the CPU provider, two threads per vision model and spinning disabled. With
+the ONNX variables unset, the server uses the CPU provider, automatic thread count and the runtime spinning
+default. PureSound continues to use its dedicated single-thread CPU session.
 
 ## Parameter reference
 
@@ -223,6 +232,7 @@ date. Labels and help texts are the same ones shown in Settings.
 | `audio_pipeline` | `energy_vad` | `energy_vad` / `puresound` | **Audio pipeline** *(Mode / switch)* — Browser VAD: a level-based VAD in the browser decides speech. PureSound: microphone audio (16 kHz PCM) streams to the server, PureSound streaming voice isolation (dpcrn_curriculum_v2) removes background sound, and speech is detected on the clean track. Needs the puresound package and model on the server; otherwise the panel shows why and the browser VAD keeps working. |
 | `onset_entry_only` | on | on / off | **Start conversations only on "entry"** — When on (PureSound mode), a conversation starts only when a speech onset on the clean track coincides with a nearby person in view; someone just walking by, or sound alone (a TV, a distant person), never starts one. |
 | `onset_needs_vision` | on | on / off | **Speech needs a person in view** — PureSound mode: for speech to start a conversation or return from AWAY, a nearby person must have been in view within the last 1.5 s (when vision is unsure, audio alone decides). |
+| `iso_dry_blend` | 0.9 | 0.01 – 1 | **Isolated voice share (dry blend)** — Share of the isolated voice before the vision cross-check. The rest is time-aligned microphone audio. 0.9 means 90%. Changing the value briefly resets the isolation stream. |
 | `iso_onset_guard` | off | on / off | **Onset guard** — Built into PureSound: keeps the original audio for the first second of each utterance and switches to the isolated voice once speech continues, so the first word is not swallowed. |
 | `iso_reset_on_change` | on | on / off | **Reset on speaker change** *(advanced)* — Reset the voice-isolation stream state (and restart the onset guard) on NEW_GROUP, a new conversation or a participant change. |
 | `clean_vad_margin_db` | 10 | 3 – 30 | **Clean VAD margin** — How many dB above the noise floor the isolated voice must be to count as speech. Smaller is more sensitive. |

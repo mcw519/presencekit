@@ -36,7 +36,7 @@ At most three inactive historical conversations are retained in the PoC profile;
 | Retention | Up to 600 seconds from normal `ENDED`; page detach also has a 600-second hard lease. No disk persistence. |
 | Provider | With configuration and consent, Typesafe Jev receives the current face crop and one reference crop per request, or all eligible reference crops in batch mode. Synthetic acceptance makes no Jev calls. |
 | Consent | Both the feature switch and consent flag must be true. Turning it off wipes stored references. |
-| API key | `TYPESAFE_API_KEY` or the Settings key field; held in memory and not logged or echoed. |
+| API key | Set `TYPESAFE_API_KEY` in [the server's .env file](configuration.md#loading-settings-from-env) or type it into Settings. A manual entry overrides the startup key for the current process. |
 | Browser thumbnails | Optional 112 px comparison previews are sent only to this page when `reid_show_crops` is enabled; they are not diagnostic event data. |
 
 Before enabling the cloud backend, inform participants, obtain the required consent, and review the provider's image handling and retention terms. Do not use real face data in synthetic acceptance runs.

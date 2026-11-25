@@ -24,7 +24,7 @@ const timerId=next;run('updateRecommendedFps(undefined);updateRecommendedFps(2);
 run('cfg.adaptive_fps=false;restartFrames()');assert.equal([...timers.values()][0].ms,1000);
 run('running=false;restartFrames()');assert.equal(timers.size,0);run('running=true;restartFrames()');assert.equal(timers.size,1);timers.clear();
 // Actual socket message routing must consume stats recommendations and preserve missing state fields.
-run("let rec=null,TLH=[],aMeta=null,last=null,lastRtt=null;let recMeta=()=>{},render=()=>{},renderStats=()=>{},t=x=>x,sendCfg=()=>{},report=()=>{};");
+run("let rec=null,TLH=[],aMeta=null,last=null,lastRtt=null;let render=()=>{},renderStats=()=>{},t=x=>x,sendCfg=()=>{},report=()=>{};");
 // Run production stop(), then restart capture: cleared interval IDs must not suppress a new timer.
 run("let vadTimer=null,pingTimer=null,stream=null,ac=null,player=null,rawMon=null,cleanMon=null,anRaw=null,anClean=null,speech=false,autoPaused=false;function setUI(){}function draw(){}function wsSend(){}");
 run(app.slice(app.indexOf('function stop(auto)'),app.indexOf("$('start').onclick=")));
@@ -64,7 +64,7 @@ sandbox.document.hidden=true;run('aMeta={value:99};queueAudioRender();flushAudio
 run("let SGB=new Uint8Array(128);");run(audio.slice(audio.indexOf('function wave('),audio.indexOf('const db=')));
 const resizeBefore=run('FEPerf.counts.canvas_resizes');run("wave('x',[.5],'red');wave('x',[],'red')");assert.equal(run('FEPerf.counts.canvas_resizes'),resizeBefore);assert.equal(clears,2);
 run(audio.slice(audio.indexOf('function sg('),audio.lastIndexOf('setInterval(')));run("sg('x',{getByteFrequencyData(){}})");assert.equal(draws,1);assert.equal(clears,3);
-run('rec={};let recordedMessages=0;recMeta=()=>recordedMessages++;TLH.length=0');
+run('TLH.length=0');
 for(let i=0;i<25;i++){now+=10;run(`ws.onmessage({data:JSON.stringify({type:'audio',value:${i},available:true})})`)}
-assert.equal(run('recordedMessages'),25);assert.equal(run('TLH.length'),25);run('flushAudioRender()');assert.equal(run('rendered.at(-1)'),24);
+assert.equal(run('TLH.length'),25);run('flushAudioRender()');assert.equal(run('rendered.at(-1)'),24);
 packet.arrayBuffer().then(buf=>{const v=new DataView(buf);assert.equal(v.getUint8(0),4);assert.equal(v.getFloat64(1,true),0);assert.equal(v.getUint8(9),1);assert.deepEqual([...new Uint8Array(buf,10)],[255,216,255,217]);console.log('frontend scheduling, metrics, DOM/canvas and binary JPEG regressions passed')}).catch(e=>{console.error(e);process.exitCode=1});

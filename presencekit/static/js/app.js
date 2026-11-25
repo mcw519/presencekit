@@ -13,7 +13,8 @@ setInterval(()=>{if(ws&&ws.readyState===1&&performance.now()-lastRx>8000){REPQ.p
 let wallPrev=Date.now();setInterval(()=>{const n=Date.now(),gap=(n-wallPrev)/1000;wallPrev=n;if(gap>5)report('client_suspend',{gap_s:Math.round(gap)})},1000);
 function connect(){invalidateFrames();clearReidDisplay(null);const query=new URLSearchParams(location.search);
  ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?'+query,['presence-v1','page-'+PAGE_CAPABILITY]);ws.binaryType='arraybuffer';
- ws.onopen=()=>{lastRx=performance.now();if(wsTries)report('reconnect',{tries:wsTries,down_s:Math.round((performance.now()-wsDownAt)/1000),running});wsTries=0;REPQ.splice(0).forEach(m=>ws.send(JSON.stringify(m)));if(rec)setTimeout(()=>wsSend({type:'record',on:true}),0);$('conn').classList.add('is-ok');$('conn').classList.remove('is-err');$('connTxt').textContent=t('conn.ok');sendCfg();if(running)ws.send(JSON.stringify({type:'start'}))};
+ ws.onopen=()=>{lastRx=performance.now();if(wsTries)report('reconnect',{tries:wsTries,down_s:Math.round((performance.now()-wsDownAt)/1000),running});wsTries=0;REPQ.splice(0).forEach(m=>ws.send(JSON.stringify(m)));$('conn').classList.add('is-ok');$('conn').classList.remove('is-err');$('connTxt').textContent=t('conn.ok');sendCfg();
+  if(running){ws.send(JSON.stringify({type:'start'}));requestRecTracks()}};
  ws.onclose=()=>{clearReidDisplay();if(!wsTries)wsDownAt=performance.now();wsTries++;$('conn').classList.remove('is-ok');$('conn').classList.add('is-err');$('connTxt').textContent=t('conn.retry');setTimeout(connect,1500)};
  ws.onmessage=e=>{lastRx=performance.now();if(typeof e.data!=='string')return onClean(e.data);const s=JSON.parse(e.data);
   if(s.type==='event')return addEv(s);
@@ -21,7 +22,7 @@ function connect(){invalidateFrames();clearReidDisplay(null);const query=new URL
   if(s.type==='asr')return onAsr(s);
   if(s.type==='reid_view'||s.type==='reid_view_clear')return onReidView(s);
   if(s.type==='handoff'||s.type==='reid')return onReid(s);
-  if(rec&&(s.type==='audio'||s.type==='state'))recMeta(s);
+  if(rec?.tracks&&(s.type==='audio'||s.type==='state'))recTrackMeta(s);
   if(s.type==='audio'){aMeta=s;if(s.available!==false)TLH.push({t:performance.now(),raw:s.raw_vad,clean:s.clean_vad,sp:s.speech,dec:s.decision,st:s.state,p:s.p_group});while(TLH.length&&performance.now()-TLH[0].t>31000)TLH.shift();return queueAudioRender()}
   if(s.type==='stats'){updateRecommendedFps(s.conn?.optim?.recommended_fps);return measureRender(()=>renderStats(s))}
   if(s.type==='pong'){lastRtt=performance.now()-s.t;return}
@@ -94,8 +95,10 @@ function fit(){const r=cv.getBoundingClientRect(),d=devicePixelRatio||1;resizeCa
 addEventListener('resize',fit);
 // Mirroring only maps x when drawing (text is never flipped); cfg/server coordinates are always raw camera coordinates
 const MIR=()=>!!cfg.mirror_view,mx=x=>MIR()?1-x:x,mbox=b=>MIR()?[1-b[2],b[1],1-b[0],b[3],...b.slice(4)]:b;
-function draw(){if(!canvasVisible(cv))return;FEPerf.counts.canvas_draws++;const W=cv.width,H=cv.height,d=devicePixelRatio||1;g.clearRect(0,0,W,H);$('v').classList.toggle('mirror',MIR());
- (last?.detections||[]).forEach(x=>{const xb=mbox(x.bbox);g.strokeStyle='#ffffff40';g.lineWidth=1*d;g.strokeRect(xb[0]*W,xb[1]*H,(xb[2]-xb[0])*W,(xb[3]-xb[1])*H)});//[0]*W,x.bbox[1]*H,(x.bbox[2]-x.bbox[0])*W,(x.bbox[3]-x.bbox[1])*H)});
+function draw(){if(!canvasVisible(cv))return;FEPerf.counts.canvas_draws++;g.clearRect(0,0,cv.width,cv.height);$('v').classList.toggle('mirror',MIR());
+ drawOverlay(g,cv.width,cv.height,devicePixelRatio||1)}
+function drawOverlay(g,W,H,d){
+ (last?.detections||[]).forEach(x=>{const xb=mbox(x.bbox);g.strokeStyle='#ffffff40';g.lineWidth=1*d;g.strokeRect(xb[0]*W,xb[1]*H,(xb[2]-xb[0])*W,(xb[3]-xb[1])*H)});
  (last?.tracks||[]).forEach(t=>{const c=col(t);
   if(t.body){const bb=mbox(t.body);g.strokeStyle=c+'99';g.lineWidth=1.5*d;g.setLineDash([4*d,4*d]);g.strokeRect(bb[0]*W,bb[1]*H,(bb[2]-bb[0])*W,(bb[3]-bb[1])*H);g.setLineDash([])}
   if(t.keypoints){const K=t.keypoints;g.strokeStyle='#ffffffcc';g.lineWidth=2*d;

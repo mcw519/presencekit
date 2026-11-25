@@ -1,4 +1,4 @@
-// Audio: AudioWorklet capture, clean-audio playback/monitoring, opt-in client-side recording, tracks view.
+// Audio: AudioWorklet capture, clean-audio playback/monitoring and tracks view.
 // Classic script; all files share one global scope and load in order from index.html.
 // ---------- audio: AudioWorklet capture (16 kHz PCM16, 20 ms) -> WS binary; clean audio back -> player ----------
 // PRIVACY: audio exists only in memory (worklet buffers, WebSocket), never stored.
@@ -40,48 +40,10 @@ async function startAudio(ac){await ac.audioWorklet.addModule(URL.createObjectUR
   const b=new ArrayBuffer(9+pcm.byteLength),dv=new DataView(b);dv.setUint8(0,1);dv.setFloat64(1,performance.now(),true);new Uint8Array(b,9).set(new Uint8Array(pcm.buffer,pcm.byteOffset,pcm.byteLength));ws.send(b)}}
 function setMonitor(m){cfg.monitor=m;if(rawMon)rawMon.gain.value=m==='raw'?1:0;if(cleanMon)cleanMon.gain.value=m==='clean'?1:0;document.querySelectorAll('#monBtns button').forEach(b=>{const on=b.dataset.m===m;b.classList.toggle('is-active',on);b.setAttribute('aria-checked',String(on))})}
 document.querySelectorAll('#monBtns button').forEach(b=>b.onclick=()=>{setMonitor(b.dataset.m);if(b.dataset.m!=='off')toast(t('toast.monitoring'))});
-// ---------- optional client-side recording (opt-in, default off) ----------
-// PRIVACY: the three aligned tracks live only in this page's memory and are saved to the user's own computer as a
-// zip download. The server only streams them while recording is on; it never writes audio.
-const REC_MAX_S=600;let rec=null;
-function recToggle(){if(rec)return recStop();
- if(!running){toast(t('toast.press_start'));return}if(cfg.audio_pipeline!=='puresound'){toast(t('toast.rec_needs_ps'));return}
- rec={t0:new Date(),n:0,raw:[],vi:[],out:[],blocks:[],states:[],settings:JSON.parse(JSON.stringify(cfg)),dropped0:aMeta?aMeta.dropped:0};
- wsSend({type:'record',on:true});recUI();rec.timer=setInterval(recUI,500)}
-function onRec(dv,buf){if(!rec)return;const n=dv.getUint32(9,true),o=13;
- rec.out.push(new Int16Array(buf.slice(o,o+2*n)));rec.vi.push(new Int16Array(buf.slice(o+2*n,o+4*n)));rec.raw.push(new Int16Array(buf.slice(o+4*n,o+6*n)));rec.n+=n;
- if(rec.n>=REC_MAX_S*16000){recStop();toast(t('toast.rec_max'))}}
-function recMeta(s){if(!rec)return;const t=+(rec.n/16000).toFixed(3);
- if(s.type==='audio'&&s.available!==false)rec.blocks.push({t,decision:s.decision,why:s.why,speech:s.speech,clean_vad:s.clean_vad,raw_vad:s.raw_vad,gain:s.gain,mix:s.mix,state:s.state,p_group:s.p_group,target_track:s.target_track,distance:s.distance});
- if(s.type==='state'){const l=rec.states[rec.states.length-1];if(!l||l.state!==s.state||l.session!==s.session)rec.states.push({t,state:s.state,session:s.session,participants:(s.tracks||[]).filter(x=>x.participant).length})}}
-function recUI(){const on=!!rec;$('recInd').classList.toggle('on',on);$('recBtn').textContent=on?t('rec.stop'):t('rec.start');$('recBtn').classList.toggle('button-danger',on);
- if(on){const sec=rec.n/16000,f=x=>`${Math.floor(x/60)}:${String(Math.floor(x%60)).padStart(2,'0')}`;$('recInd').textContent=t('rec.ind',{t:f(sec),m:f(REC_MAX_S)});$('recSt').textContent=t('rec.st',{t:f(sec),m:f(REC_MAX_S)})}}
-function wav(chunks,n){const b=new ArrayBuffer(44+2*n),v=new DataView(b),w=(o,t)=>[...t].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
- w(0,'RIFF');v.setUint32(4,36+2*n,true);w(8,'WAVEfmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,16000,true);v.setUint32(28,32000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,2*n,true);
- let o=44;const u=new Uint8Array(b);for(const c of chunks){u.set(new Uint8Array(c.buffer,c.byteOffset,c.byteLength),o);o+=c.byteLength}return u}
-const CRC=(()=>{const t=new Uint32Array(256);for(let i=0;i<256;i++){let c=i;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;t[i]=c>>>0}return t})();
-function crc32(u){let c=0xffffffff;for(let i=0;i<u.length;i++)c=CRC[(c^u[i])&255]^(c>>>8);return(c^0xffffffff)>>>0}
-function zip(files){const parts=[],cd=[];let off=0;const enc=new TextEncoder();
- for(const[name,data]of files){const nm=enc.encode(name),crc=crc32(data),h=new DataView(new ArrayBuffer(30));
-  h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint32(14,crc,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,nm.length,true);
-  parts.push(new Uint8Array(h.buffer),nm,data);const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);
-  c.setUint32(16,crc,true);c.setUint32(20,data.length,true);c.setUint32(24,data.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);cd.push(new Uint8Array(c.buffer),nm);off+=30+nm.length+data.length}
- const cdl=cd.reduce((a,x)=>a+x.length,0),e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cdl,true);e.setUint32(16,off,true);
- return new Blob([...parts,...cd,new Uint8Array(e.buffer)],{type:'application/zip'})}
-function recStop(){const r=rec;if(!r)return;rec=null;clearInterval(r.timer);wsSend({type:'record',on:false});recUI();
- $('recSt').textContent=t('rec.stopping');
- if(!r.n){toast(t('toast.rec_empty'));$('recSt').textContent='';return}
- const p=x=>String(x).padStart(2,'0'),d=r.t0,stamp=`${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`,base='presence-'+stamp;
- const side={format:'16 kHz mono PCM16 WAV',tracks:{raw:'microphone input (PureSound latency compensated, sample-aligned with vi/out)',vi:'PureSound voice isolation output (before the vision cross-check)',out:'final output (after the vision cross-check; the clean monitored track)'},
-  started_at:d.toISOString(),duration_s:+(r.n/16000).toFixed(3),samples:r.n,algo_latency_ms:aMeta?aMeta.algo_latency_ms:null,
-  server_dropped_chunks:aMeta?aMeta.dropped-r.dropped0:null,note:'t = seconds from the start of the recording (by sample count); blocks dropped by the server are not in the files.',blocks:r.blocks,states:r.states,settings:r.settings};
- const enc=new TextEncoder(),z=zip([[base+'_raw.wav',wav(r.raw,r.n)],[base+'_vi.wav',wav(r.vi,r.n)],[base+'_out.wav',wav(r.out,r.n)],[base+'.json',enc.encode(JSON.stringify(side,null,1))]]);
- const a=document.createElement('a');a.href=URL.createObjectURL(z);a.download=base+'.zip';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),60000);
- $('recSt').textContent=t('rec.done',{f:base,s:(r.n/16000).toFixed(1)});toast(t('toast.rec_done'))}
-$('recBtn').onclick=recToggle;
 let lastLat=null,pst=null;const LATS=[];
 const outLat=()=>ac?((ac.baseLatency||0)+(ac.outputLatency||0))*1000:0;
-function onClean(buf){const dv=new DataView(buf);if(dv.getUint8(0)===3)return onRec(dv,buf);if(dv.getUint8(0)!==2)return;lastLat=performance.now()-dv.getFloat64(1,true);LATS.push(lastLat);if(LATS.length>200)LATS.shift();
+function onClean(buf){const dv=new DataView(buf);if(!dv.byteLength)return;const tag=dv.getUint8(0);
+ if(tag===3)return onRecTracks(dv);if(tag!==2||dv.byteLength<9)return;lastLat=performance.now()-dv.getFloat64(1,true);LATS.push(lastLat);if(LATS.length>200)LATS.shift();
  const pcm=new Int16Array(buf.slice(9));meterPush(WC,pcm);
  if(player){const f=new Float32Array(pcm.length);for(let i=0;i<pcm.length;i++)f[i]=pcm[i]/32768;player.port.postMessage(f,[f.buffer])}}
 function meterPush(arr,pcm){let mx=0;for(let i=0;i<pcm.length;i+=4)mx=Math.max(mx,Math.abs(pcm[i]));arr.push(mx/32768);if(arr.length>250)arr.shift()}
@@ -100,7 +62,7 @@ setInterval(()=>{if(!running||!showWave())return;wave('wRaw',WR,K.viz_raw);wave(
 function monLat(){if(lastLat==null)return'—';const s=[...LATS].sort((x,y)=>x-y),p=q=>s[Math.min(s.length-1,Math.floor(q*s.length))];
  const buf=pst?pst.buf_ms:0,tot=20+aMeta.algo_latency_ms+p(0.5)+buf+outLat();
  return t('lat.mon',{tot:tot.toFixed(0),a:aMeta.algo_latency_ms,rt:p(0.5).toFixed(0),p95:p(0.95).toFixed(0),b:buf.toFixed(0),o:outLat().toFixed(0)})+(pst?t('lat.mon_under',{u:pst.under,d:pst.drop_ms.toFixed(0)}):'')+t('lat.mon_queue',{q:aMeta.queue,m:aMeta.backlog_max??0})}
-// Metadata and recording history are consumed immediately; only the visual update is coalesced.
+// Metadata is consumed immediately; only the visual update is coalesced.
 let audioRenderTimer=null,audioRenderAt=-Infinity,audioRenderPending=false;
 function flushAudioRender(){clearTimeout(audioRenderTimer);audioRenderTimer=null;if(!audioRenderPending||document.hidden)return;audioRenderPending=false;audioRenderAt=performance.now();measureRender(renderAudio)}
 function queueAudioRender(){audioRenderPending=true;if(document.hidden||audioRenderTimer!==null)return;const delay=Math.max(0,200-(performance.now()-audioRenderAt));if(!delay)flushAudioRender();else audioRenderTimer=setTimeout(flushAudioRender,delay)}
