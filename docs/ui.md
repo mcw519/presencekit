@@ -23,7 +23,7 @@ language switch, and the design rules for changing the UI. The YAML header above
 
 - **Sidebar**: connection status, language switch (EN / 中文), theme (auto / light / dark), navigation.
 - **Main column**: the camera view with overlays (face and body boxes, skeletons, ROIs, captions), the audio
-  lanes (waveform / spectrum), the ROI editor, and monitoring / recording.
+  lanes (waveform / spectrum), the ROI editor, the distance calibration card, and monitoring / recording.
 - **Right column**: the state machine, speech recognition, the presence-probability chart, countdown bars, the
   people list with intent bars, the re-ID comparison card, resources and the event log.
 - **Settings drawer**: presets, then one block per pipeline module (input → detection → pose → distance →

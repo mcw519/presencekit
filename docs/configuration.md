@@ -149,8 +149,8 @@ date. Labels and help texts are the same ones shown in Settings.
 | Key | Default | Range | Description |
 |---|---|---|---|
 | `distance_enabled` | off | on / off | **Enable distance estimation** *(Mode / switch)* — Estimates distance from face width (about 0.15 m) and shoulder width (about 0.38 m, frontal only) plus the camera field of view. |
-| `camera_hfov` | 60 | 20 – 170 | **Camera horizontal FOV** — Horizontal field of view of the camera. If unknown, keep the default and calibrate below. |
-| `distance_calib` | 1 | 0.2 – 5 | **Calibration factor** — Estimated distances are multiplied by this. "I am standing at this distance" below computes it. |
+| `camera_hfov` | 60 | 20 – 170 | **Camera horizontal FOV** — Horizontal field of view of the camera. If unknown, keep the default and use the Distance calibration panel below the camera. |
+| `distance_calib` | 1 | 0.2 – 5 | **Calibration factor** — Estimated distances are multiplied by this. Use the Distance calibration card below the camera on the main screen to compute it. |
 | `zone_min` | 0.4 | 0 – 10 | **Conversation zone near edge** — Closer than this is marked "too close". |
 | `zone_max` | 2 | 0.1 – 20 | **Conversation zone far edge** — Outer edge of the conversation zone. Beyond it but before the leave distance is marked "far". |
 | `leave_distance` | 2.5 | 0.2 – 30 | **Leave distance** — Beyond this distance a person counts as gone even while still in view. |

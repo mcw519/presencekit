@@ -14,6 +14,7 @@ BROADBAND_LOW_RISE_DB = 15.0
 BROADBAND_TILT_DB = 0.0
 HISTORY_S = 0.2
 HOLD_S = 0.16
+VOWEL_SCAN_S = 0.14
 
 
 def _band_power(signal: np.ndarray, sample_rate: int, lo_hz: float, hi_hz: float) -> float:
@@ -58,16 +59,48 @@ class AcousticRecovery:
         self.history_hops = round(HISTORY_S * sample_rate / hop)
         self.recent: deque[np.ndarray] = deque(maxlen=self.history_hops + self.attack_hops)
         self.onset: int | None = None
+        self.utterance_qualified = False
+        self._utterance_onset: int | None = None
+        self._pre_history: np.ndarray | None = None
+        self._scan_deadline: int | None = None
 
-    def step(self, samples: np.ndarray, end_sample: int, onset: bool) -> None:
+    def step(self, samples: np.ndarray, end_sample: int, onset: bool, *, speech: bool = True) -> None:
         self.recent.append(samples.copy())
         if onset:
             self.onset = None
+            self.utterance_qualified = False
+            self._utterance_onset = end_sample - self.attack_hops * self.hop
+            self._pre_history = None
+            self._scan_deadline = None
             if len(self.recent) == self.recent.maxlen:
                 history = np.concatenate(self.recent)
                 split = self.history_hops * self.hop
-                if qualifies(history[split:], history[:split], self.sample_rate):
+                attack, pre = history[split:], history[:split]
+                if qualifies(attack, pre, self.sample_rate):
+                    self.onset = self._utterance_onset
+                    self.utterance_qualified = True
+                else:
+                    rise, _ = onset_features(attack, pre, self.sample_rate)
+                    if rise >= RISE_DB:
+                        # Consonant-initial burst (e.g. /s/, /t/): keep checking for voiced vowel arrival.
+                        self._pre_history = pre
+                        self._scan_deadline = self._utterance_onset + round(VOWEL_SCAN_S * self.sample_rate)
+        elif not speech:
+            self.utterance_qualified = False
+            self._utterance_onset = None
+            self._pre_history = None
+            self._scan_deadline = None
+        elif self._pre_history is not None and self._scan_deadline is not None:
+            if end_sample <= self._scan_deadline and len(self.recent) >= self.attack_hops:
+                attack = np.concatenate(list(self.recent)[-self.attack_hops :])
+                if qualifies(attack, self._pre_history, self.sample_rate):
                     self.onset = end_sample - self.attack_hops * self.hop
+                    self.utterance_qualified = True
+                    self._pre_history = None
+                    self._scan_deadline = None
+            elif end_sample > self._scan_deadline:
+                self._pre_history = None
+                self._scan_deadline = None
 
     def allows(self, output_start: int, output_bound: int) -> bool:
         onset = self.onset

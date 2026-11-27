@@ -163,6 +163,8 @@ class PresenceEngine:
             out, speech = a.process(pcm16, snap, now, vis_age, mouth_age=mouth_age)
             tr = self.core.tracker
             tr.speech_source = "clean"
+            if speech and tr.speaking:
+                tr.last_speech = now
             step = self.core.update(Observation(speaking=speech), now) if speech != tr.speaking else None
             return out, step
 

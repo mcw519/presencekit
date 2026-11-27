@@ -257,3 +257,13 @@
 
 /* Language and theme switches stacked in the sidebar footer. */
 .sidebar-controls{display:flex;flex-direction:column;gap:6px}
+
+/* Distance calibration card on the main workbench. */
+#calibCard .panel-title{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.calib-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:8px}
+.calib-input{display:inline-flex;align-items:center;gap:6px}
+.calib-input .control{width:76px;flex:none}
+.calib-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#calHint{margin-top:8px;min-height:0}
+#calHint.is-counting{color:var(--accent)!important;font-weight:500}
+

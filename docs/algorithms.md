@@ -229,7 +229,7 @@ When `audio_pipeline == "puresound"`, every 20 ms 16 kHz PCM16 chunk runs throug
 
 1. **Isolation (`Isolator`)**: Streams 10 ms hops (512-point STFT, 30 ms look-ahead) through `dpcrn_curriculum_v2.onnx`, blending `iso_dry_blend` (default 0.9, `Near-field priority` 1.0) of enhanced speech with delay-aligned raw input. Automatically resets (`iso_reset_on_change`) on `NEW_GROUP`, session change, or disjoint replacement of the participant set (preserving state while overlapping group members join or drop).
 2. **Dual `CleanVAD`**: Tracks adaptive noise floor (falls immediately, rises ~3 dB/s) on both the **enhanced** signal (`clean`) and **raw** input (`raw`). Speech requires `level > max(min_db, floor + margin_db)` for 60 ms (`min_on`), with `clean_vad_hang` (0.3 s) hangover.
-3. **Vision Alignment (`CrossCheckAdjuster.view`)**: Computes freshness `age = max(vis_age, max(0, capture_gap))`. If `snap` is missing, `age > xcheck_stale` (2.0 s), or `path == "uncertain"`, vision is `usable=False`. Otherwise, `person`, `near` (within `near_range`), and `all_far` are each held for `xcheck_hold` (0.75 s), with `all_far` suppressed whenever `near` is held (protecting near-speaker onsets).
+3. **Vision Alignment (`CrossCheckAdjuster.view`)**: Computes freshness `age = max(vis_age, max(0, capture_gap))`. If `snap` is missing, `age > xcheck_stale` (2.0 s), or `path == "uncertain"`, vision is `usable=False`. Otherwise, `person`, `near` (within `near_range`), and `all_far` are each held for `xcheck_hold` (0.75 s), with `all_far` suppressed whenever `near` is held (protecting near-speaker onsets). It also tracks `any_far` (any visible person beyond `near_range`, held for `max(xcheck_hold, xcheck_stale)`).
 4. **Decision Table (`CrossCheckAdjuster.decide`)**:
    - `usable == False` or `xcheck_enabled == False` → `acoustic_only` (pass PureSound output, `speech = clean`).
    - `clean` and `not person` → `leak` (attenuate to `xcheck_floor_db` = −40 dB, `speech = False`).
@@ -237,8 +237,8 @@ When `audio_pipeline == "puresound"`, every 20 ms 16 kHz PCM16 chunk runs throug
    - `clean` and `near` → `agree` (gain 1.0, `speech = True`).
    - `not clean` and `raw` and `near` → `false_reject`. Behavior depends on `xcheck_recovery_mode`:
      - `legacy`: mixes `xcheck_recover_mix` (0.3) enhanced + 0.7 delay-aligned raw, `speech = True`.
-     - `audio`: uses `AcousticRecovery` (raw onset RMS rise ≥ 8 dB with tilt ≤ −12 dB, or broadband speech rise ≥ 18 dB with 150–1800 Hz rise ≥ 15 dB and tilt ≤ 0 dB, held for `HOLD_S = 0.16 s`) to decide whether to recover the onset (`speech = True`) or keep it suppressed (`speech = False`).
-     - `audiovisual`: recovers (`speech = True`) when either `AcousticRecovery` allows **or** a near visible track has fresh `mouth_motion >= MOUTH_THRESHOLD` (`~0.00459`), and otherwise suppresses both mix and `speech = False`.
+     - `audio`: uses `AcousticRecovery` (raw onset RMS rise ≥ 8 dB with tilt ≤ −12 dB, or broadband speech rise ≥ 18 dB with 150–1800 Hz rise ≥ 15 dB and tilt ≤ 0 dB, including up to 140 ms vowel scan for consonant-initial bursts, held for `HOLD_S = 0.16 s`). When distance confirms only near person(s) (`dist_ok` and `not any_far`) and the current utterance qualified or agreed, recovery continues while raw audio stays active (`≤ 0.15 s` past threshold); otherwise unapproved blocks are suppressed (`speech = False`).
+     - `audiovisual`: recovers (`speech = True`) when the same acoustic/solo-near criteria allow **or** a near visible track has fresh `mouth_motion >= MOUTH_THRESHOLD` (`~0.00459`), and otherwise suppresses both mix and `speech = False`.
    - Otherwise → `silence` (gain 1.0, `speech = False`).
 
 Gain transitions ramp smoothly (`xcheck_attack = 0.01 s`, `xcheck_release = 0.05 s`).

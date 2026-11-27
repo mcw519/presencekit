@@ -276,6 +276,7 @@ function syncUI(skip){if(cfg.asr_provider==='none')captionOff();
   if(inp.type==='range'){const o=$('o_'+k);if(o)o.textContent=LM(k).u?`${v} ${LM(k).u}`:v}});
  for(const k in DEF){const r=$('row_'+k);if(r)r.classList.toggle('changed',JSON.stringify(cfg[k])!==JSON.stringify(DEF[k]))}
  if(typeof applyDeps==='function'&&$('flow').childElementCount)applyDeps();
+ if(typeof updateCalibUI==='function')updateCalibUI();
 }
 let sendTimer;
 function setCfg(part,src,immediate){Object.assign(cfg,part);if(!cfg.reid_enabled||!cfg.reid_consent)clearReidDisplay();save();syncUI(src);

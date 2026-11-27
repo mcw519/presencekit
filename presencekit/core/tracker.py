@@ -37,7 +37,7 @@ class PresenceTracker(TrackingMixin, PresenceStateMachineMixin):
         now = self.clock() if now is None else now
         onset = bool(speaking) and not self.speaking
         self.speaking = bool(speaking)
-        if speaking:
+        if self.speaking:
             self.last_speech = now
             if self.state == State.ENDED and self._entry_only():
                 if onset and now - self._last_starter_t <= 1.5:
@@ -56,10 +56,10 @@ class PresenceTracker(TrackingMixin, PresenceStateMachineMixin):
 
     def update(self, detections: list[Detection], speaking: bool | None = None, now: float | None = None) -> dict:
         now = self.clock() if now is None else now
+        if speaking is True or (speaking is None and self.speaking):
+            self.last_speech = now
         if speaking is not None:
             self.speaking = bool(speaking)
-            if speaking:
-                self.last_speech = now
         dets = [d for d in detections if self.det_in_roi(d)]
         for d in dets:
             d.embedding = _norm(d.embedding)
@@ -119,6 +119,8 @@ class PresenceTracker(TrackingMixin, PresenceStateMachineMixin):
 
     def tick(self, now: float | None = None) -> dict:
         now = self.clock() if now is None else now
+        if self.speaking:
+            self.last_speech = now
         self._evaluate(now)
         return self.snapshot(now)
 
