@@ -39,7 +39,9 @@ presencekit/
   vision.py          VisionPipeline（偵測 + embedding，預設 ORT，附備援）、姿勢載入、記憶體內解碼
   embed_backends.py  SFace 後端：ONNX Runtime fp32 / int8、OpenCV DNN、TFLite（+ delegate）
   optimizer.py       移動閘門、embedding 節流、ROI 裁切、自適應 fps
+  mouth_motion.py    YuNet 對齊的嘴部光流動作（供影音起音救回）
   audio.py           PureSound 串流銜接、乾淨 VAD、影像交叉確認
+  acoustic_recovery.py 交叉確認用的原始音訊起音頻譜救回
   asr.py             AssemblyAI 串流用戶端（選用）
   reid.py            identity 的 v0.12 匯入路徑（re-export；CrossSessionReid = ContinuationDriver）
   acceptance.py      統一的離線 PoC 驗收 runner 與報告格式
@@ -57,7 +59,8 @@ presencekit/
   static/
     index.html       只有版面（文字用 data-i18n 屬性）
     app.css          在 PureSound CSS 之上的 presence 專用版面
-    js/              i18n · core · settings · app · audio · panels · main（一般 script，載入順序有意義）
+    js/              i18n · core · settings · media-devices · recording · app · audio · panels ·
+                     real-acceptance-recorder · main（一般 script，載入順序有意義）
     i18n/            en.js、zh-TW.js 字串表
     vendor/puresound PureSound 設計系統（未修改）
 scripts/             基準測試、評估、模型匯出（export_movenet_onnx.py、export_sface_tflite.py）／下載、

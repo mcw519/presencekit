@@ -9,6 +9,9 @@ quietly while someone else talks. And a TV in the background "talks" all the tim
 PresenceKit combines **what the camera sees** with **what the microphone hears** and keeps a small, explainable
 state machine. Every decision comes with a written reason in the event log.
 
+> Looking for the formal data contracts, equations, and how every layer is wired together in code? See
+> **[Algorithm Design & Assembly](algorithms.md)**.
+
 ## The pipeline at a glance
 
 ```mermaid
