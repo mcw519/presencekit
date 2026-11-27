@@ -40,7 +40,9 @@ presencekit/
   vision.py          VisionPipeline (detect + embed, ORT defaults with fallbacks), pose loader, in-memory decode
   embed_backends.py  SFace backends: ONNX Runtime fp32 / int8, OpenCV DNN, TFLite (+ delegate)
   optimizer.py       motion gate, embedding throttle, ROI crop, adaptive fps
+  mouth_motion.py    YuNet-aligned lip optical-flow motion for audiovisual onset recovery
   audio.py           PureSound streaming glue, clean VAD, vision cross-check
+  acoustic_recovery.py raw onset spectral rise/tilt recovery for cross-check
   asr.py             AssemblyAI streaming client (optional)
   reid.py            v0.12 import path for identity (re-exports; CrossSessionReid = ContinuationDriver)
   acceptance.py      unified offline PoC acceptance runner and report schema
@@ -58,7 +60,8 @@ presencekit/
   static/
     index.html       markup only (text via data-i18n attributes)
     app.css          presence-specific layout on top of the vendored PureSound CSS
-    js/              i18n · core · settings · app · audio · panels · main (classic scripts, load order matters)
+    js/              i18n · core · settings · media-devices · recording · app · audio · panels ·
+                     real-acceptance-recorder · main (classic scripts, load order matters)
     i18n/            en.js, zh-TW.js string tables
     vendor/puresound PureSound design system (unmodified)
 scripts/             benchmark, evaluation, model export (export_movenet_onnx.py, export_sface_tflite.py) / fetch,

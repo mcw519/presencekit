@@ -3,50 +3,46 @@
 # Documentation
 
 PresenceKit answers one question for a conversational device: **is the person (or group) I am talking to still here?**
-These pages explain how it works, how to run it and how to tune it. Start with *How it works* if you are new.
+The documentation is organized around **two main entry points**:
 
-## Start here
+1. **Newcomer & Project Guide** — if you are new to PresenceKit, want to run the demo, embed the SDK, or understand the codebase layout.
+2. **Detailed Algorithm Design** — if you want the formal definitions, equations, and how the vision, audio, tracking, intent, presence, and state machine layers assemble into the final output.
+
+---
+
+## Entry 1: Newcomer & Project Guide
 
 | Page | What you will learn |
 |---|---|
-| [Getting started](getting-started.md) | Install, run, open the demo, optional extras |
-| [How it works](how-it-works.md) | The whole pipeline in plain words, with one worked example |
-
-## Algorithms (one page per layer)
-
-| Page | Layer | Question it answers |
-|---|---|---|
-| [Detection](detection.md) | 1 · perception | Where are the faces and bodies, how far away, who is who? |
-| [Tracking](tracking.md) | 2 · tracking | Which detection belongs to which person over time? (legacy vs Kalman) |
-| [Intent](intent.md) | 3 · intent | Who actually wants to talk, and who is just passing by? |
-| [Presence](presence.md) | 4 · presence | Is the group still here? (rules vs HMM) |
-| [State machine](state-machine.md) | 5 · decision | ACTIVE / IDLE / MAYBE_AWAY / AWAY / ENDED, timeouts, NEW_GROUP |
-| [Audio](audio.md) | cross-check | PureSound voice isolation checked against vision |
-| [Re-ID](reid.md) | optional | Is the new session the same user as last time? |
-| [PoC acceptance](acceptance.md) | validation | What synthetic, pipeline and real-device acceptance means |
-| [Real-device and Jev runbook](real-acceptance.md) | operations | M4 + Chrome device checks, consent gate, Jev matrix, and cleanup |
-| [Speech recognition](asr.md) | optional | Streaming ASR of the cleaned audio |
-
-## Using and tuning
-
-| Page | Content |
-|---|---|
-| [Configuration](configuration.md) | Every parameter (generated from code), presets, environment variables |
-| [Tuning](tuning.md) | A step-by-step recipe for a new room or camera |
+| [Getting started](getting-started.md) | Install, run the web demo, select input devices, optional extras |
+| [Architecture](architecture.md) | Package layers (`core`, `inference`, `detectors`, `identity`, `runtime`, `sdk`, `web`), threads, WebSocket & HTTP protocol |
+| [SDK and ONNX Runtime](sdk.md) | Embedding `PresenceEngine`, `OrtOptions`, execution providers, model catalogue, porting |
+| [Configuration](configuration.md) | Every parameter (generated from code), presets (`Near-field priority` default), environment variables, `.env` |
+| [Web UI](ui.md) | Layout, language switch, design system, recording, adding strings |
+| [Privacy](privacy.md) | What is processed in memory, what is erased on `ENDED`, what can leave the device |
+| [Tuning](tuning.md) | Step-by-step recipe for adapting to a new room or camera |
 | [Performance](performance.md) | Power savers, latency per stage, embedding backends and NPU |
-| [Web UI](ui.md) | Layout, language switch, design system and how to add strings |
-
-## Project and operations
-
-| Page | Content |
-|---|---|
-| [Architecture](architecture.md) | Code layout, threads, WebSocket protocol |
-| [SDK and ONNX Runtime](sdk.md) | Embedding `PresenceEngine`, execution providers, model files, porting |
 | [PoC acceptance](acceptance.md) | Target profile, thresholds, runner commands, and pending real tests |
-| [Real-device and Jev runbook](real-acceptance.md) | Operator procedure for physical camera/microphone and consented Jev checks |
-| [Privacy](privacy.md) | What is processed, what is kept in memory, what can leave the device |
+| [Real-device and Jev runbook](real-acceptance.md) | M4 + Chrome device checks, consent gate, Jev matrix, and cleanup |
 | [Logging](logging.md) | Structured events, `/debug/events`, debugging a hang |
 | [Licenses](licenses.md) | Third-party models, packages and data |
+
+---
+
+## Entry 2: Detailed Algorithm Design
+
+| Page | Layer / Scope | What it defines |
+|---|---|---|
+| **[Algorithm Design & Assembly](algorithms.md)** | **Entry · Full Pipeline** | **Data contracts, mathematical models, and how all 7 layers assemble into `Step` and cleaned audio** |
+| [How it works](how-it-works.md) | Overview | The pipeline in plain words, with one worked example |
+| [Detection](detection.md) | 1 · Perception | YuNet, SFace, MoveNet, orientation, distance estimation, and mouth motion |
+| [Tracking](tracking.md) | 2 · Tracking | `legacy` greedy matching vs. `kalman` (Kalman + Hungarian + HSV appearance + coasting) |
+| [Intent](intent.md) | 3 · Intent | `rules` dwell vs. `score` (6 cues + facing gate + EMA + `speech_join`) |
+| [Presence](presence.md) | 4 · Presence | `rules` frame streaks vs. `hmm` continuous-time log-odds Bayes filter + audio offset |
+| [State machine](state-machine.md) | 5 · Decision | `ACTIVE` / `IDLE` / `MAYBE_AWAY` / `AWAY` / `ENDED`, priority modes, `NEW_GROUP` |
+| [Audio](audio.md) | 6 · Cross-check | PureSound isolation, dual CleanVAD, vision cross-check, and onset recovery |
+| [Re-ID](reid.md) | 7 · Optional | Cross-session identity continuity (`ContinuationDriver`, `CallGuard`, Jev) |
+| [Speech recognition](asr.md) | Optional | Streaming ASR of the cleaned audio (AssemblyAI) |
 
 ## Figures
 

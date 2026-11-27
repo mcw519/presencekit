@@ -99,17 +99,26 @@ Each stage has its own page with intuition, formulas, figures and evaluation res
 
 ## Documentation
 
-The full index is in [docs/](docs/README.md). Highlights:
+The full index is in [docs/](docs/README.md), organized into **two entry points**:
 
-| | |
+### 1. Newcomer & Project Guide
+
+| Page | Purpose |
 |---|---|
-| [Getting started](docs/getting-started.md) | Install, run, expose safely, optional extras |
-| [Configuration](docs/configuration.md) | Every parameter, presets, environment variables |
-| [Tuning](docs/tuning.md) | Adapting to a new room or camera |
-| [Performance](docs/performance.md) | CPU cost, latency, NPU backends |
-| [Privacy](docs/privacy.md) | What is processed, kept and (optionally) sent out |
+| [Getting started](docs/getting-started.md) | Install, run the demo, select camera/mic, expose safely |
+| [Architecture](docs/architecture.md) | Layered code layout (`core`, `inference`, `detectors`, `identity`, `runtime`, `sdk`, `web`) & protocols |
 | [SDK and ONNX Runtime](docs/sdk.md) | Embedding `PresenceEngine`, execution providers, model files, porting |
-| [Architecture](docs/architecture.md) | Code layout and WebSocket protocol |
+| [Configuration](docs/configuration.md) | Every parameter, presets (`Near-field priority` default), environment variables, `.env` |
+| [Privacy](docs/privacy.md) | What is processed, kept in memory, and (optionally) sent out |
+
+### 2. Detailed Algorithm Design
+
+| Page | Purpose |
+|---|---|
+| **[Algorithm Design & Assembly](docs/algorithms.md)** | **Formal definitions, equations, and how all layers assemble into `Step` and cleaned audio** |
+| [How it works](docs/how-it-works.md) | Plain-language overview with a worked example |
+| [Detection](docs/detection.md) · [Tracking](docs/tracking.md) · [Intent](docs/intent.md) | Per-layer deep dives: perception, Kalman/Hungarian, 6-cue intent |
+| [Presence](docs/presence.md) · [State machine](docs/state-machine.md) · [Audio](docs/audio.md) | Per-layer deep dives: HMM log-odds, 5-state machine, PureSound cross-check & recovery |
 
 ## Project layout
 

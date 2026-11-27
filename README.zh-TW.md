@@ -91,17 +91,26 @@ flowchart LR
 
 ## 文件
 
-完整目錄在 [docs/zh-TW/](docs/zh-TW/README.md)。重點：
+完整目錄在 [docs/zh-TW/](docs/zh-TW/README.md)，分為**兩個主要入口**：
 
-| | |
+### 1. 新手與專案說明
+
+| 頁面 | 用途 |
 |---|---|
-| [快速開始](docs/zh-TW/getting-started.md) | 安裝、執行、安全開放、選用功能 |
-| [設定參數](docs/zh-TW/configuration.md) | 所有參數、預設組合、環境變數 |
-| [調參指南](docs/zh-TW/tuning.md) | 適應新的房間或鏡頭 |
-| [效能](docs/zh-TW/performance.md) | CPU 成本、延遲、NPU 後端 |
-| [隱私](docs/zh-TW/privacy.md) | 處理什麼、保存什麼、（選用時）送出什麼 |
+| [快速開始](docs/zh-TW/getting-started.md) | 安裝、執行 demo、選擇鏡頭／麥克風、安全開放 |
+| [架構](docs/zh-TW/architecture.md) | 分層程式結構（`core`、`inference`、`detectors`、`identity`、`runtime`、`sdk`、`web`）與協定 |
 | [SDK 與 ONNX Runtime](docs/zh-TW/sdk.md) | 嵌入 `PresenceEngine`、執行提供者、模型檔、移植 |
-| [架構](docs/zh-TW/architecture.md) | 程式結構和 WebSocket 協定 |
+| [設定參數](docs/zh-TW/configuration.md) | 所有參數、預設組合（預設「近場優先」）、環境變數與 `.env` |
+| [隱私](docs/zh-TW/privacy.md) | 處理什麼、保存什麼、（選用時）送出什麼 |
+
+### 2. 演算法詳細設計
+
+| 頁面 | 用途 |
+|---|---|
+| **[演算法詳細設計與組裝](docs/zh-TW/algorithms.md)** | **資料契約、數學定義，以及所有演算法如何組裝成 `Step` 與乾淨音訊** |
+| [運作原理](docs/zh-TW/how-it-works.md) | 白話總覽與完整情境範例 |
+| [偵測](docs/zh-TW/detection.md) · [追蹤](docs/zh-TW/tracking.md) · [互動意圖](docs/zh-TW/intent.md) | 單層深入：感知、Kalman／匈牙利、6 線索互動意圖 |
+| [在場判斷](docs/zh-TW/presence.md) · [狀態機](docs/zh-TW/state-machine.md) · [音訊](docs/zh-TW/audio.md) | 單層深入：HMM 對數勝算、五狀態機、PureSound 交叉確認與起音救回 |
 
 ## 專案結構
 
