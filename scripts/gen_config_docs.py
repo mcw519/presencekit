@@ -47,7 +47,7 @@ def load_strings(lang: str) -> dict[str, str]:
 def load_modules() -> list[dict]:
     """Extract id, gate, keys and adv of every settings module from settings.js."""
     src = (STATIC / "js" / "settings.js").read_text(encoding="utf-8")
-    block = src[src.index("const MODULES=[") : src.index("const MOD_PRESETS")]
+    block = src[src.index("const MODULES=[") : src.index("let ADV=")]
     mods = []
     for chunk in re.split(r"\n \{id:", block)[1:]:
         mid = re.match(r"'(\w+)'", chunk).group(1)

@@ -7,7 +7,7 @@ The full reference with explanations is generated into docs/configuration.md.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from enum import Enum
 
 
@@ -130,6 +130,7 @@ class Config:
     xcheck_stale: float = 2.0  # s: no processed frame for this long -> acoustic only
     xcheck_require_calib: bool = False  # only use distance (false_accept) after a distance calibration
     xcheck_floor_db: float = -40.0  # leak / false_accept output level (<= -60 = mute)
+    xcheck_recovery_mode: str = "legacy"  # legacy | audio | audiovisual
     xcheck_recover_mix: float = 0.3  # false_reject: enhanced share (rest = latency-aligned raw input)
     xcheck_attack: float = 0.01  # s: gain ramp up
     xcheck_release: float = 0.05  # s: gain ramp down
@@ -164,6 +165,23 @@ class Config:
     reid_cap_per_hour: int = 30
     reid_cap_total: int = 200  # per connection
     reid_cost_per_call: float = 0.0  # user-entered unit price, for the cost estimate only
+    xcheck_mouth_recovery: InitVar[bool | None] = None  # compatibility with the previous SDK switch
+
+    def __post_init__(self, xcheck_mouth_recovery: bool | None) -> None:
+        if xcheck_mouth_recovery and self.xcheck_recovery_mode == "legacy":
+            self.xcheck_recovery_mode = "audiovisual"
+
+    @property
+    def onset_recovery_enabled(self) -> bool:
+        return (
+            self.audio_pipeline == "puresound"
+            and self.xcheck_enabled
+            and self.xcheck_recovery_mode in ("audio", "audiovisual")
+        )
+
+    @property
+    def mouth_recovery_enabled(self) -> bool:
+        return self.onset_recovery_enabled and self.xcheck_recovery_mode == "audiovisual"
 
     @property
     def match_cos(self) -> float:
@@ -195,11 +213,16 @@ class Config:
         if "roi" in d:  # migrate legacy key
             v = d.pop("roi")
             d.setdefault("face_roi", v)
+        if "xcheck_recovery_mode" in d:
+            d.pop("xcheck_mouth_recovery", None)
         for k, v in d.items():
-            if k not in RANGES:
+            if k == "xcheck_mouth_recovery":
+                lo, hi, typ = False, True, bool
+            elif k in RANGES:
+                lo, hi, typ = RANGES[k]
+            else:
                 warnings.append(f"unknown key {k}")
                 continue
-            lo, hi, typ = RANGES[k]
             try:
                 if typ == "text":
                     if not isinstance(v, str):
@@ -216,7 +239,10 @@ class Config:
                         if v.lower() not in ("true", "false", "1", "0", "on", "off"):
                             raise ValueError
                         v = v.lower() in ("true", "1", "on")
-                    setattr(self, k, bool(v))
+                    if k == "xcheck_mouth_recovery":
+                        self.xcheck_recovery_mode = "audiovisual" if v else "legacy"
+                    else:
+                        setattr(self, k, bool(v))
                     continue
                 if typ is tuple:
                     vals = [min(hi, max(lo, float(x))) for x in v]
@@ -355,6 +381,7 @@ RANGES = {
     "xcheck_stale": (0.2, 30.0, float),
     "xcheck_require_calib": (False, True, bool),
     "xcheck_floor_db": (-80.0, 0.0, float),
+    "xcheck_recovery_mode": (("legacy", "audio", "audiovisual"), None, str),
     "xcheck_recover_mix": (0.0, 0.9, float),
     "xcheck_attack": (0.001, 0.5, float),
     "xcheck_release": (0.005, 2.0, float),
@@ -506,6 +533,7 @@ GROUPS: dict[str, tuple[str, ...]] = {
         "xcheck_stale",
         "xcheck_require_calib",
         "xcheck_floor_db",
+        "xcheck_recovery_mode",
         "xcheck_recover_mix",
         "xcheck_attack",
         "xcheck_release",

@@ -28,8 +28,8 @@ function recTrackMeta(s){
  if(!tracks||rec.stopAt!==null)return;
  const t=+(tracks.samples/REC_SAMPLE_RATE).toFixed(3);
  if(s.type==='audio'&&s.available!==false){
-  const {decision,why,speech,clean_vad,raw_vad,gain,mix,state,p_group,target_track,distance}=s;
-  tracks.blocks.push({t,decision,why,speech,clean_vad,raw_vad,gain,mix,state,p_group,target_track,distance});
+  const {decision,why,speech,clean_vad,raw_vad,gain,mix,state,p_group,target_track,distance,recovery}=s;
+  tracks.blocks.push({t,decision,why,speech,clean_vad,raw_vad,gain,mix,state,p_group,target_track,distance,recovery});
  }else if(s.type==='state'){
   const prev=tracks.states.at(-1);
   if(!prev||prev.state!==s.state||prev.session!==s.session){

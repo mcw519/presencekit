@@ -29,7 +29,8 @@ class AppContext:
     pipeline: Callable[[], Any]  # -> VisionPipeline (blocking; loads once per process)
     pose_detector: Callable[[], Any]  # -> PoseDetector | None (loads once per process)
     pose_cache: dict
-    vision_job: Callable[..., Any]  # (proc, jpeg, cfg, stable, conn) -> (detections, timings) | None
+    # (proc, jpeg, cfg, stable, conn, *, frame_time=None) -> (detections, timings) | None
+    vision_job: Callable[..., Any]
     calibrate: Callable[..., list[str]]  # (tracker, meters) -> warnings
     audio_stream: Callable[..., Any]  # Config -> AudioStream
     puresound_available: Callable[[], tuple[bool, str | None]]

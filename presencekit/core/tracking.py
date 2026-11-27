@@ -337,6 +337,7 @@ class TrackingMixin:
         c = self.cfg
         t.has_face = d.face_bbox is not None
         t.frontal = d.frontal if t.has_face else None
+        t.mouth_motion = d.mouth_motion if t.has_face else None
         t.body = d.body
         if d.body is not None:
             t.facing_score, t.facing = orientation(d.body)

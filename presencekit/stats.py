@@ -36,14 +36,16 @@ class ConnStats:
                 "motion",
                 "detect",
                 "embed",
+                "mouth",
                 "appearance",
                 "pose",
                 "tracker",
                 "total",
             )
         }
-        self.frame_times = deque(maxlen=window)
-        self.bytes = deque(maxlen=window)  # (t, nbytes)
+        # Keep enough timestamps for the five-second rate window at fixed 24 fps.
+        self.frame_times = deque(maxlen=max(window, 150))
+        self.bytes = deque(maxlen=max(window, 150))  # (t, nbytes)
         self.received = self.processed = self.dropped = 0
         self.rtt = deque(maxlen=20)
         self.last_size = (0, 0)
@@ -102,6 +104,7 @@ class ConnStats:
                     "last": round(v[-1], 2) if v else 0.0,
                 }
                 for k, v in self.lat.items()
+                if k != "mouth" or v
             },
             "fps": round(self.fps(), 2),
             "frames": {"received": self.received, "processed": self.processed, "dropped": self.dropped},

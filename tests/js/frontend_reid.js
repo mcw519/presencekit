@@ -39,6 +39,6 @@ run('connect()');resumed(1); // New server can restart its session numbering.
 sandbox.message={type:'state',session:2,detections:[]};run('ws.onmessage({data:JSON.stringify(message)})');cleared();
 assert.equal(run('REID.session'),2);
 // Import/preset changes also go through the real sendCfg() path.
-run(settings.slice(settings.indexOf('function serverCfg()'),settings.indexOf("document.querySelectorAll('#presets")));
+run(settings.slice(settings.indexOf('function serverCfg()'),settings.indexOf('const modeButtons=')));
 resumed(2);run('cfg.reid_consent=false;sendCfg()');cleared();
 console.log('re-ID consent, session, wipe and reconnect display regressions passed');

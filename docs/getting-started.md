@@ -19,6 +19,10 @@ Open the page, press **Start**, and allow camera and microphone. Stand in front 
 around your face, the state strip turns **ACTIVE**, and the people list shows you as a participant. Walk away and
 watch it go through **MAYBE_AWAY → AWAY → ENDED**.
 
+Under **Settings → Input devices**, choose a camera and microphone or leave them on **Automatic**.
+If device names are hidden, use **Allow access and list devices**. Choices are remembered in this browser.
+To switch devices during use, stop capture, choose the new inputs, and start again.
+
 The first run downloads the face models (YuNet and SFace, a few MB) into `models/`. Set `PRESENCE_MODEL_DIR` to
 put them somewhere else. All models run on ONNX Runtime (CPU by default; `PRESENCE_ORT_PROVIDERS` picks another
 execution provider). If the download fails, a simple Haar + colour-histogram fallback is used so the demo still
@@ -52,14 +56,14 @@ with `zh` → 繁體中文, otherwise English). Use the **EN / 中文** switch i
 
 | Feature | How to enable | Read more |
 |---|---|---|
-| Body pose (MoveNet) | Settings → Pose, or the *Recommended* preset; for ONNX Runtime instead of LiteRT, run `scripts/export_movenet_onnx.py` once | [Detection](detection.md), [SDK](sdk.md#models) |
-| Distance estimate | Settings → Distance, then *Distance calibration* | [Detection](detection.md) |
+| Body pose (MoveNet) | Settings → Detailed settings → Pose, or *Near-field priority*; for ONNX Runtime instead of LiteRT, run `scripts/export_movenet_onnx.py` once | [Detection](detection.md), [SDK](sdk.md#models) |
+| Distance estimate | Settings → Detailed settings → Distance, then *Distance calibration* | [Detection](detection.md) |
 | PureSound voice isolation | `uv sync --extra puresound` and `uv run python scripts/fetch_puresound_model.py --clone` | [Audio](audio.md) |
-| Cloud speech recognition | Settings → Speech recognition + an API key | [ASR](asr.md) |
-| Cross-session re-ID | Settings → Re-ID, explicit consent + an API key | [Re-ID](reid.md) |
+| Cloud speech recognition | Settings → Detailed settings → Speech recognition + an API key | [ASR](asr.md) |
+| Cross-session re-ID | Settings → Detailed settings → Re-ID, explicit consent + an API key | [Re-ID](reid.md) |
 
-Tip: the **Recommended** preset in Settings turns on the newer algorithms (Kalman tracking, HMM presence, intent
-score, pose, distance and PureSound). The plain defaults are kept conservative for backwards compatibility.
+New browsers start in **Near-field priority**. Install the PureSound extra to use its voice isolation and audio onset recovery.
+See [the three modes](configuration.md#modes) for the differences.
 
 ## Developer commands
 

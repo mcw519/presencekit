@@ -116,7 +116,7 @@ def test_import_profile_against_actual_ui(tmp_path):
         pytest.skip("node unavailable")
     settings = (real.ROOT / "presencekit/static/js/settings.js").read_text()
     start = settings.index("const DEF=")
-    end = settings.index("const REC=")
+    end = settings.index("const modeOverrides=")
     # DEF/META are declarations only; the helper is copied from its literal declaration.
     declarations = settings[start:end]
     clamp = next(line for line in settings.splitlines() if line.startswith("const clamp="))

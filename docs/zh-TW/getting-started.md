@@ -18,6 +18,9 @@ uv run presencekit                      # http://127.0.0.1:8000
 打開網頁，按 **開始**，允許鏡頭和麥克風。站到鏡頭前：臉上會出現框，狀態列變成 **ACTIVE**，人員清單把你列為參與者。
 走開後，可以看到狀態依序變成 **MAYBE_AWAY → AWAY → ENDED**。
 
+在 **設定 → 輸入裝置** 可以選擇相機和麥克風，也可以保留 **自動選擇**。如果瀏覽器尚未顯示裝置名稱，
+請按 **授權並讀取裝置**。選擇會儲存在目前的瀏覽器。使用中要切換裝置時，請先停止擷取，選好新的輸入裝置後再開始。
+
 第一次執行會把人臉模型（YuNet、SFace，幾 MB）下載到 `models/`，可以用 `PRESENCE_MODEL_DIR` 指定其他位置。
 所有模型都跑在 ONNX Runtime 上（預設 CPU；`PRESENCE_ORT_PROVIDERS` 可以選其他執行提供者）。下載失敗時會改用簡單的
 Haar + 顏色直方圖備援，demo 仍然可以啟動。
@@ -46,14 +49,14 @@ uv run presencekit --host 0.0.0.0 --port 8000
 
 | 功能 | 開啟方式 | 說明 |
 |---|---|---|
-| 身體姿勢（MoveNet） | 設定 → 姿勢，或「推薦」預設組合；要用 ONNX Runtime 取代 LiteRT，先執行一次 `scripts/export_movenet_onnx.py` | [偵測](detection.md)、[SDK](sdk.md#模型) |
-| 距離估計 | 設定 → 距離，再做「距離校正」 | [偵測](detection.md) |
+| 身體姿勢（MoveNet） | 設定 → 詳細設定 → 姿勢，或選擇「近場優先」；要用 ONNX Runtime 取代 LiteRT，先執行一次 `scripts/export_movenet_onnx.py` | [偵測](detection.md)、[SDK](sdk.md#模型) |
+| 距離估計 | 設定 → 詳細設定 → 距離，再做「距離校正」 | [偵測](detection.md) |
 | PureSound 人聲分離 | `uv sync --extra puresound` 和 `uv run python scripts/fetch_puresound_model.py --clone` | [音訊](audio.md) |
-| 雲端語音辨識 | 設定 → 語音辨識，加上 API key | [語音辨識](asr.md) |
-| 跨 session 使用者判斷 | 設定 → Re-ID，明確同意，加上 API key | [Re-ID](reid.md) |
+| 雲端語音辨識 | 設定 → 詳細設定 → 語音辨識，加上 API key | [語音辨識](asr.md) |
+| 跨 session 使用者判斷 | 設定 → 詳細設定 → Re-ID，明確同意，加上 API key | [Re-ID](reid.md) |
 
-提示：設定裡的 **推薦** 預設組合會開啟較新的演算法（Kalman 追蹤、HMM 在場判斷、意圖分數、姿勢、距離、PureSound）。
-一般預設值為了相容舊版，維持保守。
+新瀏覽器預設使用「**近場優先**」。安裝 PureSound 選用功能後，即可使用人聲分離與純音訊起音救回。
+各模式的差異見[使用模式](configuration.md#使用模式)。
 
 ## 開發指令
 

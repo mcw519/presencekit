@@ -114,7 +114,7 @@ class PresenceEngine:
             cfg = self.config
             self.frames.prepare(cfg)
             stable = self.state not in (State.MAYBE_AWAY, State.AWAY)
-            dets, self.timings = self.frames.process(image, cfg, stable)
+            dets, self.timings = self.frames.process(image, cfg, stable, frame_time=now)
             tr = self.core.tracker
             tr.speech_source = "clean" if self._audio is not None else "browser"
             step = self.core.update(Observation(dets, None if self._audio is not None else speaking), now)
@@ -159,7 +159,8 @@ class PresenceEngine:
             snap = self.core.snapshot(now)
             a.on_vision(snap, now)
             vis_age = math.inf if self._last_frame is None else max(0.0, now - self._last_frame)
-            out, speech = a.process(pcm16, snap, now, vis_age)
+            mouth_age = vis_age if self._last_frame is not None and now >= self._last_frame else math.inf
+            out, speech = a.process(pcm16, snap, now, vis_age, mouth_age=mouth_age)
             tr = self.core.tracker
             tr.speech_source = "clean"
             step = self.core.update(Observation(speaking=speech), now) if speech != tr.speaking else None
@@ -180,7 +181,7 @@ class PresenceEngine:
             self.core = PresenceCore(self.config, clock=self.clock)
             self.frames.reset()
             if self._audio is not None:
-                self._audio.iso.reset()
+                self._audio.reset_isolation()
             self._last_frame = None
 
     def close(self) -> None:

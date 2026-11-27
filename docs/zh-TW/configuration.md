@@ -5,18 +5,18 @@
 伺服器端參數在 `presencekit/config.py`（`Config`），允許範圍在 `RANGES`。網頁送來的值會先檢查、限制在範圍內，
 **只套用到該連線**，並回傳警告。`GET /api/config` 會回傳預設值和範圍。
 
-**設定**抽屜依管線模組分組，順序和資料流相同：
+**設定**抽屜提供三種[使用模式](#使用模式)。展開**詳細設定**即可看到依資料流分組的參數。
 
 ```
 輸入 → 偵測 → 姿勢（選用） → 距離（選用） → 追蹤 → 意圖 → 在場 → 狀態／逾時
      → 音訊（PureSound + 交叉確認） → 語音辨識（雲端） → re-ID（雲端）      ［效能、顯示：橫跨各模組］
 ```
 
-每個模組最上面是開關或模式；下面的參數只在適用時顯示，變灰的參數會說明原因。*進階*參數要開啟「**進階參數**」才顯示
-（改過的進階參數一律顯示）。每個模組都有自己的「**↺ 重設**」。
+每個模組最上面是開關或模式。下方參數只在適用時顯示，變灰的參數會說明原因。開啟「**顯示所有參數**」可看到進階參數，
+改過的進階值也會自動顯示。每個模組都有自己的「**重設**」。
 
-設定存在瀏覽器（`localStorage["presence-cfg-v1"]`），每次連線都會重送；也可以匯出、匯入 JSON。存過的設定會蓋過新版的
-預設值，升級後如果想用新的預設值，請按「**預設**」。
+設定存在瀏覽器（`localStorage["presence-cfg-v1"]`），每次連線都會重送。可在**詳細設定**中匯出或匯入 JSON。
+瀏覽器首次開啟時預設使用**近場優先**；已有設定時會載入已儲存的值。
 
 ## 分組檢視（v0.13）
 
@@ -47,20 +47,16 @@ JSON）以及下方的參數表，在 v0.13 完全照舊可用。此外每個鍵
 | 效能 | — | 子參數需要對應的省電機制開啟 |
 | 顯示 | — | 只影響這個瀏覽器 |
 
-## 預設組合
+## 使用模式
 
-「推薦」是實地測試過的設定；「低角度鏡頭」「單人」「多人圍觀」「吵雜環境」建立在「推薦」之上，只列出差異。
-「低功耗」只改效能相關的值，套用在目前的設定上。
-
-| 組合 | 內容 |
+| 模式 | 內容 |
 |---|---|
-| 推薦 | tracker `kalman`、presence `hmm`、intent `score`、姿勢開、距離開、`audio_pipeline` `puresound`、交叉確認開、`near_range` 1.6 m、`min_conf` 0.4、`leave_halflife` 1.5 s、`force_detect_seconds` 2 s、`join_seconds` 1.5 s、`grace_seconds` 10 s、臉部 ROI (0.25, 0.1, 0.8, 0.89)、身體 ROI (0.18, 0.04, 0.85, 0.92) |
-| 低角度鏡頭 | 推薦 + `min_conf` 0.35、`leave_halflife` 2 s、`force_detect_seconds` 1.5 s、臉部 ROI (0.2, 0.05, 0.85, 0.95)、身體 ROI (0.1, 0, 0.9, 1)、`body_min_conf` 0.35 |
-| 單人 | 推薦 + 臉部 ROI (0.25, 0.05, 0.75, 0.95)、`present_timeout` 45、`empty_timeout` 5、`new_group_seconds` 3、`absent_frames` 3 |
-| 多人圍觀 | 推薦 + 臉部 ROI (0.08, 0.02, 0.92, 0.98)、`join_seconds` 3、`grace_seconds` 20、`present_frames` 2、`absent_frames` 4、`present_timeout` 90、`empty_timeout` 8、`new_group_seconds` 5、`cos_match` 0.42、`fps` 2、`near_range` 2 m |
-| 吵雜環境 | 推薦 + `priority_mode` `vision`、`vad_k` 3.5、`vad_min` 0.02、`vad_hang` 300 ms、`min_conf` 0.5、`near_range` 1.2 m、`base_timeout` 15、`present_timeout` 45、`empty_timeout` 5 |
-| 低功耗 | 移動閘門、embedding 節流（5 s）、自適應 fps 0.5–1、ROI 裁切、`max_width` 480、姿勢和距離關閉 |
-| 預設 | 回到下表的預設值 |
+| 標準 | 瀏覽器 VAD、預設追蹤與在場規則、自適應 0.5–2 fps |
+| 近場優先 | PureSound 100% 分離、關閉內建起音保護、純音訊起音救回、近場範圍 1.3 m、固定 2 fps、影像優先、Kalman、HMM、意圖分數、姿勢與距離估計 |
+| 低功耗 | 瀏覽器 VAD、自適應 0.5–1 fps、偵測寬度上限 480 px、移動閘門與 5 秒 embedding 節流 |
+
+選擇模式會套用該組音訊、追蹤及效能參數。鏡頭 ROI、距離校正與選用服務設定可在「**詳細設定**」獨立調整。
+目前模式會依實際參數顯示，匯入設定後也會更新。
 
 ## 環境變數
 
@@ -92,7 +88,7 @@ cp -n .env.example .env
 uv run --env-file .env presencekit
 ```
 
-`.env` 由 Git 忽略。也可以在 **設定 → 語音辨識** 或 **設定 → 使用者比對** 手動輸入 key，手動輸入在目前程序優先。
+`.env` 由 Git 忽略。也可以在 **設定 → 詳細設定 → 語音辨識** 或 **設定 → 詳細設定 → 使用者比對** 手動輸入 key，手動輸入在目前程序優先。
 按清除會停用目前程序的 key，下次用 `.env` 啟動時會再載入檔案裡的值。
 
 ### 選用的 CPU 部署設定
@@ -221,7 +217,7 @@ uv run --env-file .env presencekit
 
 | 鍵 | 預設 | 範圍 | 說明 |
 |---|---|---|---|
-| `audio_pipeline` | `energy_vad` | `energy_vad` / `puresound` | **音訊管線** *(模式／開關)* — 瀏覽器 VAD：用瀏覽器端的音量 VAD 判斷說話（目前預設）。PureSound：麥克風音訊（16 kHz PCM）串流到伺服器，用 PureSound 的串流人聲分離（dpcrn_curriculum_v2）去掉背景聲音，再用「乾淨音軌」判斷說話。需要伺服器安裝 puresound 套件與模型；沒有的話會在「乾淨音軌」面板顯示原因，並繼續用瀏覽器 VAD。 |
+| `audio_pipeline` | `energy_vad` | `energy_vad` / `puresound` | **音訊管線** *(模式／開關)* — 瀏覽器 VAD：用瀏覽器端的音量 VAD 判斷說話。PureSound：麥克風音訊（16 kHz PCM）串流到伺服器，用 PureSound 的串流人聲分離（dpcrn_curriculum_v2）去掉背景聲音，再用「乾淨音軌」判斷說話。需要伺服器安裝 puresound 套件與模型；沒有的話會在「乾淨音軌」面板顯示原因，並繼續用瀏覽器 VAD。 |
 | `onset_entry_only` | on | on / off | **只在「進場」時開始對話** — 開啟時（PureSound 模式），對話只會在「乾淨音軌偵測到說話開頭」而且「畫面中有一位靠近的人」同時發生時開始；只有人經過、或只有聲音（電視、遠處的人）都不會開始。 |
 | `onset_needs_vision` | on | on / off | **說話需搭配畫面** — PureSound 模式下，說話要「開始對話」或「從 AWAY 回來」時，最近 1.5 秒內畫面中必須有一位靠近的人（影像不確定時例外，改成只看聲音）。 |
 | `iso_dry_blend` | 0.9 | 0.01 – 1 | **人聲分離比例（dry blend）** — 影像交叉確認前的分離人聲比例，其餘混入時間對齊的麥克風原聲。0.9 代表 90%。調整後會短暫重置分離串流。 |
@@ -236,6 +232,7 @@ uv run --env-file .env presencekit
 | `xcheck_stale` | 2 | 0.2 – 30 | **畫面過期時間** *(進階)* — 超過這麼久沒有新的畫面結果，就只看聲音。 |
 | `xcheck_require_calib` | off | on / off | **距離需先校正** — 開啟時，要先在「距離」做過校正才會判斷「超出範圍」。 |
 | `xcheck_floor_db` | -40 | -80 – 0 | **壓低音量** — 漏音或超出範圍時輸出降低多少（≤ -60 dB 為靜音）。 |
+| `xcheck_recovery_mode` | `legacy` | `legacy` / `audio` / `audiovisual` | **漏收起音救回** — 設定近處有人且 PureSound 安靜時的原音混回條件。純音訊使用短時間的起音特徵。嘴部與音訊也接受時間相近的 YuNet 嘴部動作。 |
 | `xcheck_recover_mix` | 0.3 | 0 – 0.9 | **漏收時的增強比例** *(進階)* — 聲學誤判-漏收時，輸出中分離後聲音的比例；其餘是（時間對齊的）原始聲音。越小保留越多原聲。 |
 | `xcheck_attack` | 0.01 | 0.001 – 0.5 | **音量上升時間** *(進階)* — 壓低解除時的淡入時間常數。 |
 | `xcheck_release` | 0.05 | 0.005 – 2 | **音量下降時間** *(進階)* — 開始壓低時的淡出時間常數。 |

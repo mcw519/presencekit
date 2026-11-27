@@ -16,7 +16,7 @@ def _def_keys():
 
 
 def test_every_setting_is_in_a_module():
-    mods = HTML[HTML.index("const MODULES=[") : HTML.index("const MOD_PRESETS")]
+    mods = HTML[HTML.index("const MODULES=[") : HTML.index("let ADV=")]
     placed = set(re.findall(r"'([a-z_0-9]+)'", mods))
     missing = {k for k in _def_keys() if k != "monitor" and k not in placed}
     assert not missing, missing

@@ -24,6 +24,7 @@ import numpy as np
 from .appearance import descriptor, torso_box
 from .body import Body, associate, head_box
 from .intent import frontal_from_landmarks
+from .mouth_motion import MotionSample, MouthMotion, align_face
 from .tracker import Config, Detection, iou
 from .vision import PoseDetector, VisionPipeline
 
@@ -97,6 +98,7 @@ def fuse(faces: list[Detection], bodies: list[Body]) -> list[Detection]:
                     face_bbox=f.bbox,
                     body=bodies[bi] if bi is not None else None,
                     frontal=f.frontal,
+                    mouth_motion=f.mouth_motion,
                 )
             )
         else:
@@ -214,6 +216,7 @@ class FrameProcessor:
         self._settings: tuple | None = None
         self.last_full = -1e9
         self.cache: list[_Cached] = []
+        self.mouth = MouthMotion()
         self.counts.update(
             frames=0,
             skipped=0,
@@ -225,11 +228,13 @@ class FrameProcessor:
             detect_hits=0,  # detector runs that found >= 1 face (in-memory diagnostic)
         )
 
-    def process(self, img: np.ndarray, cfg: Config, stable: bool = True) -> tuple[list[Detection], dict]:
+    def process(
+        self, img: np.ndarray, cfg: Config, stable: bool = True, *, frame_time=None
+    ) -> tuple[list[Detection], dict]:
         with self._guard:
             self._busy += 1
         try:
-            return self._process(img, cfg, stable)
+            return self._process(img, cfg, stable, frame_time)
         finally:
             with self._guard:
                 self._busy -= 1
@@ -237,7 +242,7 @@ class FrameProcessor:
                     self._reset_pending = False
                     self._clear()
 
-    def _process(self, img: np.ndarray, cfg: Config, stable: bool) -> tuple[list[Detection], dict]:
+    def _process(self, img: np.ndarray, cfg: Config, stable: bool, frame_time) -> tuple[list[Detection], dict]:
         now = self.clock()
         h, w = img.shape[:2]
         self.counts["frames"] += 1
@@ -267,9 +272,11 @@ class FrameProcessor:
         )
         settings_changed = settings != self._settings
         self._settings = settings
+        mouth_enabled = cfg.mouth_recovery_enabled and frame_time is not None
         face_skipped = bool(
             not settings_changed
             and cfg.motion_gate
+            and not mouth_enabled
             and stable
             and self.last_faces
             and not self._pose_body_only
@@ -301,6 +308,7 @@ class FrameProcessor:
             # --- embeddings (throttled) ---
             out: list[Detection] = []
             new_cache: list[_Cached] = []
+            mouth_faces = []
             for raw, conf in raws:
                 full = map_raw_to_frame(raw, scale, x0, y0)
                 x, y, bw, bh = (float(v) for v in full[:4])
@@ -337,9 +345,25 @@ class FrameProcessor:
                     t_emb, cb = now, bbox
                 new_cache.append(_Cached(cb, emb, t_emb, ss))
                 out.append(Detection(bbox, conf, emb, frontal=frontal_from_landmarks(full)))
+                if mouth_enabled and getattr(self.pipe.detector, "landmarks", False):
+                    mouth_faces.append((out[-1], full))
             self.cache = new_cache
             tm["embed"] = (time.perf_counter() - t2) * 1000
             self.last_faces = [replace(d) for d in out]
+            if mouth_enabled:
+                t_mouth = time.perf_counter()
+                detections, samples = [], []
+                for det, row in mouth_faces:
+                    patch = align_face(img, row)
+                    if patch is not None:
+                        detections.append(det)
+                        samples.append(MotionSample(det.bbox, patch))
+                for det, score in zip(detections, self.mouth.step(samples, frame_time, iou), strict=True):
+                    det.mouth_motion = score
+                tm["mouth"] = (time.perf_counter() - t_mouth) * 1000
+                tm["mouth_frame_interval_ms"] = self.mouth.interval_ms
+        if not mouth_enabled and self.mouth.time is not None:
+            self.mouth = MouthMotion()
         tm["pose"] = 0.0
         tm["pose_reused"] = False
         if cfg.pose_enabled:

@@ -6,10 +6,10 @@ Defaults are a starting point. Tune on the real device, camera position, lightin
 one thing, watch the UI for a few minutes, **export the settings JSON** with a descriptive name
 (`lobby-noisy.json`), repeat.
 
-## 0. Start from a preset
+## 0. Start from a mode
 
-Pick the preset closest to your setting (Settings → Presets): *Recommended*, *Low camera*, *Single person*,
-*Group*, *Noisy room* or *Low power*. Presets are listed in [Configuration](configuration.md#presets).
+Choose *Standard*, *Near-field priority* or *Low power* in Settings. Open **Detailed settings** to tune
+individual parameters and export your configuration. See [the three modes](configuration.md#modes).
 
 ## 1. Fix the ROI first
 
