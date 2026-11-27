@@ -28,14 +28,17 @@ class Play extends AudioWorkletProcessor{constructor(){super();this.q=[];this.n=
   if(++this.k%40===0)this.port.postMessage({buf_ms:this.depth()/16,under:this.under,drop_ms:this.drop/16,playing:this.play});return true}}
 registerProcessor('play',Play);`;
 let player=null,rawMon=null,cleanMon=null;const WR=[],WC=[];
-async function startAudio(ac){await ac.audioWorklet.addModule(URL.createObjectURL(new Blob([WORKLET],{type:'application/javascript'})));
- const src=ac.createMediaStreamSource(stream),cap=new AudioWorkletNode(ac,'cap');src.connect(cap);
+async function startAudio(ac){
+ const capture=stream,moduleUrl=URL.createObjectURL(new Blob([WORKLET],{type:'application/javascript'}));
+ try{await ac.audioWorklet.addModule(moduleUrl)}finally{URL.revokeObjectURL(moduleUrl)}
+ if(stream!==capture)return;
+ const src=ac.createMediaStreamSource(capture),cap=new AudioWorkletNode(ac,'cap');src.connect(cap);
  const sink=ac.createGain();sink.gain.value=0;cap.connect(sink).connect(ac.destination);// keep the graph pulling, silent
  rawMon=ac.createGain();rawMon.gain.value=0;src.connect(rawMon).connect(ac.destination);
  anRaw=ac.createAnalyser();anRaw.fftSize=256;src.connect(anRaw);
  player=new AudioWorkletNode(ac,'play',{outputChannelCount:[1]});player.port.onmessage=e=>{pst=e.data};cleanMon=ac.createGain();cleanMon.gain.value=0;player.connect(cleanMon).connect(ac.destination);
  anClean=ac.createAnalyser();anClean.fftSize=256;player.connect(anClean);setMonitor(cfg.monitor);
- cap.port.onmessage=e=>{const pcm=e.data;meterPush(WR,pcm);
+ cap.port.onmessage=e=>{if(stream!==capture)return;const pcm=e.data;meterPush(WR,pcm);
   if(cfg.audio_pipeline!=='puresound'||!ws||ws.readyState!==1)return;
   const b=new ArrayBuffer(9+pcm.byteLength),dv=new DataView(b);dv.setUint8(0,1);dv.setFloat64(1,performance.now(),true);new Uint8Array(b,9).set(new Uint8Array(pcm.buffer,pcm.byteOffset,pcm.byteLength));ws.send(b)}}
 function setMonitor(m){cfg.monitor=m;if(rawMon)rawMon.gain.value=m==='raw'?1:0;if(cleanMon)cleanMon.gain.value=m==='clean'?1:0;document.querySelectorAll('#monBtns button').forEach(b=>{const on=b.dataset.m===m;b.classList.toggle('is-active',on);b.setAttribute('aria-checked',String(on))})}

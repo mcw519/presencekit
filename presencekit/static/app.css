@@ -98,6 +98,12 @@
 .mode-choice[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft)}
 .mode-choice[aria-pressed=true]::after{background:var(--accent);border-color:var(--accent);box-shadow:inset 0 0 0 2px var(--canvas)}
 .mode-choice:focus-visible,.settings-details>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.device-inputs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.device-inputs .field{min-width:0}
+.device-inputs > .field + .field{margin-top:0}
+.device-inputs select{width:100%;text-overflow:ellipsis}
+.device-permission{margin-top:8px}
+@media(max-width:360px){.device-inputs{grid-template-columns:1fr}}
 .settings-details>summary{cursor:pointer;font-size:var(--text-body);font-weight:600}
 .settings-details:not([open])>:not(summary){display:none}
 .settings-details[open]>summary{margin-bottom:12px}

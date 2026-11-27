@@ -202,6 +202,19 @@
       </div>
       <p id="customMode" class="toggle-hint" role="status" data-i18n="preset.custom" hidden>目前使用自訂設定。選擇模式可套用該組參數。</p>
     </section>
+    <section class="inspector-section" aria-labelledby="deviceTitle">
+      <p class="eyebrow" id="deviceTitle" data-i18n="device.title">輸入裝置</p>
+      <div class="device-inputs">
+        <label class="field" for="cameraDevice"><span data-i18n="device.camera">相機</span>
+          <select class="control" id="cameraDevice" disabled><option value="" data-i18n="device.default">自動選擇</option></select>
+        </label>
+        <label class="field" for="microphoneDevice"><span data-i18n="device.microphone">麥克風</span>
+          <select class="control" id="microphoneDevice" disabled><option value="" data-i18n="device.default">自動選擇</option></select>
+        </label>
+      </div>
+      <button class="button button-secondary button-small device-permission" id="loadDevices" type="button" data-i18n="device.load" hidden>授權並讀取裝置</button>
+      <p class="toggle-hint" id="deviceStatus" role="status" hidden></p>
+    </section>
     <details class="inspector-section settings-details">
       <summary data-i18n="set.details">詳細設定</summary>
       <div class="adv-row"><p class="eyebrow" style="margin:0" data-i18n="set.flow">資料流</p>
@@ -225,6 +238,7 @@
 <script src="/static/i18n/zh-TW.js"></script>
 <script src="/static/js/core.js"></script>
 <script src="/static/js/settings.js"></script>
+<script src="/static/js/media-devices.js"></script>
 <script src="/static/js/app.js"></script>
 <script src="/static/js/audio.js"></script>
 <script src="/static/js/recording.js"></script>

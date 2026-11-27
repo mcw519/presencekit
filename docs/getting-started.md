@@ -19,6 +19,10 @@ Open the page, press **Start**, and allow camera and microphone. Stand in front 
 around your face, the state strip turns **ACTIVE**, and the people list shows you as a participant. Walk away and
 watch it go through **MAYBE_AWAY → AWAY → ENDED**.
 
+Under **Settings → Input devices**, choose a camera and microphone or leave them on **Automatic**.
+If device names are hidden, use **Allow access and list devices**. Choices are remembered in this browser.
+To switch devices during use, stop capture, choose the new inputs, and start again.
+
 The first run downloads the face models (YuNet and SFace, a few MB) into `models/`. Set `PRESENCE_MODEL_DIR` to
 put them somewhere else. All models run on ONNX Runtime (CPU by default; `PRESENCE_ORT_PROVIDERS` picks another
 execution provider). If the download fails, a simple Haar + colour-histogram fallback is used so the demo still
