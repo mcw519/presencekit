@@ -61,8 +61,8 @@ uv run presencekit            # open http://127.0.0.1:8000 and press Start
 ```
 
 Browsers only allow the camera on `localhost` or HTTPS. Before exposing the server to others, set
-`PRESENCE_TOKEN` (see [Getting started](docs/getting-started.md)). In Settings, try the **Recommended** preset to
-switch on the newer algorithms.
+`PRESENCE_TOKEN` (see [Getting started](docs/getting-started.md)). New browsers start in **Near-field priority**.
+Install the optional audio files below to use PureSound with audio onset recovery.
 
 Optional voice isolation:
 

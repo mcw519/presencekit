@@ -35,7 +35,7 @@ Review `profile.json`, `preflight.json`, `manual-results.json`, and `README.md`.
 
 ### Load the fixed presence profile
 
-The preparation tool should produce a profile that can be imported in the Settings drawer. Before starting, use **Settings → Import JSON** and verify the keys below. Use the actual imported values as authoritative and record any differences. This PoC acceptance profile differs from the **Recommended** preset; do not substitute Recommended.
+The preparation tool should produce a profile that can be imported in the Settings drawer. Before starting, use **Settings → Detailed settings → Import JSON** and verify the keys below. Use the actual imported values as authoritative and record any differences. Use the imported profile throughout the run.
 
 | Setting key | Acceptance value |
 |---|---|

@@ -21,6 +21,13 @@ class VisionTiming:
     received: float
     submitted: float
     completed: float
+    mouth_frame_interval_ms: float | None = None
+
+    @staticmethod
+    def mouth_age(timing: dict) -> float:
+        """Require comparable timestamps and a frame that was captured before the audio packet."""
+        gap = timing["capture_gap_ms"]
+        return timing["effective_age_ms"] / 1000 if gap is not None and gap >= 0 else math.inf
 
     def measure(self, audio_client_ms, now: float, stale_after: float) -> tuple[float, dict]:
         audio_ms = client_timestamp(audio_client_ms)

@@ -115,7 +115,7 @@ says so briefly before NEW_GROUP starts a new session.
 
 ## Which one to use?
 
-- Start with `kalman` + `hmm` (+ `score` intent): the *Recommended* preset. Watch the **presence probability**
+- Start with `kalman` + `hmm` (+ `score` intent): the *Near-field priority* mode. Watch the **presence probability**
   chart in the UI.
 - Too slow to notice departures → lower `leave_halflife`. Too many false MAYBE_AWAY → raise it.
 - Lighting is poor and detections are weak → keep `lowconf_factor` small so weak frames stay neutral.

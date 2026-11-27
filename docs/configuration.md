@@ -6,7 +6,7 @@ Server-side parameters live in `presencekit/config.py` (`Config`), with their al
 sent from the page are validated and clamped, applied **to that connection only**, and any warnings are sent back.
 `GET /api/config` returns defaults and ranges.
 
-The **Settings** drawer groups parameters by pipeline module, in data-flow order:
+The **Settings** drawer offers three [modes](#modes). Open **Detailed settings** for parameters grouped in pipeline order:
 
 ```
 input → detection → pose (opt.) → distance (opt.) → tracking → intent → presence → state / timeouts
@@ -14,12 +14,12 @@ input → detection → pose (opt.) → distance (opt.) → tracking → intent 
 ```
 
 Each module starts with its switch or mode; the parameters below it appear only when they apply, and greyed-out
-ones say why. *Advanced* parameters are hidden until **Advanced** is on (changed advanced values are always
-shown). Each module has its own **↺ Reset**.
+ones say why. Turn on **Show all parameters** to see advanced values. Changed advanced values are shown
+automatically. Each module has its own **Reset**.
 
 Settings are saved in the browser (`localStorage["presence-cfg-v1"]`) and re-sent on every connection; they can be
-exported and imported as JSON. Saved settings override newer defaults, so press **Defaults** after upgrading if
-you want the new ones.
+exported and imported as JSON under **Detailed settings**. Browsers without saved settings start in
+**Near-field priority**. Browsers with saved settings load those values.
 
 ## Grouped view (v0.13)
 
@@ -51,20 +51,17 @@ key belongs to exactly one group in `presencekit.config.GROUPS` (`core`, `tracke
 | Performance | — | sub-parameters need their saver switched on |
 | Display | — | this browser only |
 
-## Presets
+## Modes
 
-*Recommended* is the field-tested configuration; *Low camera*, *Single person*, *Group* and *Noisy room* build on
-it and list only the differences. *Low power* changes only performance settings, on top of whatever is active.
-
-| Preset | Settings |
+| Mode | Settings |
 |---|---|
-| Recommended | tracker `kalman`, presence `hmm`, intent `score`, pose on, distance on, `audio_pipeline` `puresound`, cross-check on, `near_range` 1.6 m, `min_conf` 0.4, `leave_halflife` 1.5 s, `force_detect_seconds` 2 s, `join_seconds` 1.5 s, `grace_seconds` 10 s, face ROI (0.25, 0.1, 0.8, 0.89), body ROI (0.18, 0.04, 0.85, 0.92) |
-| Low camera | Recommended + `min_conf` 0.35, `leave_halflife` 2 s, `force_detect_seconds` 1.5 s, face ROI (0.2, 0.05, 0.85, 0.95), body ROI (0.1, 0, 0.9, 1), `body_min_conf` 0.35 |
-| Single person | Recommended + face ROI (0.25, 0.05, 0.75, 0.95), `present_timeout` 45, `empty_timeout` 5, `new_group_seconds` 3, `absent_frames` 3 |
-| Group | Recommended + face ROI (0.08, 0.02, 0.92, 0.98), `join_seconds` 3, `grace_seconds` 20, `present_frames` 2, `absent_frames` 4, `present_timeout` 90, `empty_timeout` 8, `new_group_seconds` 5, `cos_match` 0.42, `fps` 2, `near_range` 2 m |
-| Noisy room | Recommended + `priority_mode` `vision`, `vad_k` 3.5, `vad_min` 0.02, `vad_hang` 300 ms, `min_conf` 0.5, `near_range` 1.2 m, `base_timeout` 15, `present_timeout` 45, `empty_timeout` 5 |
-| Low power | motion gate, embedding throttle (5 s), adaptive fps 0.5–1, ROI crop, `max_width` 480, pose and distance off |
-| Defaults | back to the defaults in the tables below |
+| Standard | Browser VAD, default tracking and presence rules, adaptive 0.5–2 fps |
+| Near-field priority | PureSound at 100% isolation with SDK onset protection off, audio-only onset recovery, 1.3 m near range, fixed 2 fps, vision priority, Kalman tracking, HMM presence, intent scoring, pose and distance |
+| Low power | Browser VAD, adaptive 0.5–1 fps, detection width up to 480 px, motion gating and 5 s embedding throttling |
+
+Choose a mode to apply its audio, tracking and performance parameters. Camera regions, distance calibration,
+and optional service settings can be edited independently under **Detailed settings**. The mode indicator follows
+the current values, including after importing a saved configuration.
 
 ## Environment variables
 
@@ -97,8 +94,8 @@ cp -n .env.example .env
 uv run --env-file .env presencekit
 ```
 
-Git ignores `.env`. In the browser you can also enter the keys under **Settings → Speech recognition** and
-**Settings → Re-ID**. A manual entry takes precedence for the running server. Clearing a key disables it in
+Git ignores `.env`. In the browser you can also enter the keys under **Settings → Detailed settings → Speech recognition** and
+**Settings → Detailed settings → Re-ID**. A manual entry takes precedence for the running server. Clearing a key disables it in
 that process. A restart with `.env` loads the file's value again.
 
 ### Optional CPU deployment settings
@@ -244,6 +241,7 @@ date. Labels and help texts are the same ones shown in Settings.
 | `xcheck_stale` | 2 | 0.2 – 30 | **Vision stale time** *(advanced)* — With no new vision result for this long, audio alone decides. |
 | `xcheck_require_calib` | off | on / off | **Require distance calibration** — When on, "out of range" is only used after distance calibration. |
 | `xcheck_floor_db` | -40 | -80 – 0 | **Attenuation** — How much the output is lowered on leak or out of range (≤ -60 dB = mute). |
+| `xcheck_recovery_mode` | `legacy` | `legacy` / `audio` / `audiovisual` | **Missed-onset recovery** — Choose the evidence for mixing back raw audio when PureSound is quiet and someone is nearby. Audio uses short onset features. Mouth and audio also accepts fresh YuNet mouth motion. |
 | `xcheck_recover_mix` | 0.3 | 0 – 0.9 | **Enhancement share on a miss** *(advanced)* — On an acoustic miss, the share of isolated voice in the output; the rest is time-aligned raw audio. Smaller keeps more of the original. |
 | `xcheck_attack` | 0.01 | 0.001 – 0.5 | **Gain attack** *(advanced)* — Fade-in time constant when attenuation ends. |
 | `xcheck_release` | 0.05 | 0.005 – 2 | **Gain release** *(advanced)* — Fade-out time constant when attenuation starts. |

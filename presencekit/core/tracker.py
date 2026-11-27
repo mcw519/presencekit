@@ -165,6 +165,7 @@ class PresenceTracker(TrackingMixin, PresenceStateMachineMixin):
                     else None,
                     "facing": t.facing,
                     "facing_score": t.facing_score,
+                    **({"mouth_motion": t.mouth_motion} if self.cfg.mouth_recovery_enabled else {}),
                     "distance": round(t.distance, 2) if t.distance is not None and self.cfg.distance_enabled else None,
                     "trend": t.trend,
                     "far": t.far,

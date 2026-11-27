@@ -34,7 +34,7 @@ flowchart LR
 
 Each layer has a simple mode and a smarter mode. You can switch them live in Settings and compare:
 
-| Layer | Simple (default) | Smarter (in the *Recommended* preset) |
+| Layer | Standard | Near-field priority |
 |---|---|---|
 | Tracking | `legacy`: greedy match on face similarity + box overlap | `kalman`: motion prediction + global matching + clothing colour |
 | Intent | `rules`: anyone in the ROI for `join_seconds` joins | `score`: a 0–1 engagement score from facing, distance, dwell… |

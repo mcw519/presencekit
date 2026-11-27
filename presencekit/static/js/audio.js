@@ -81,6 +81,10 @@ function visionAlignment(a){const v=a.vision_timing,gap=Number.isFinite(v?.captu
   parts.push(t('akv.align_timing_v',{phase:(v.processed_age_ms/1000).toFixed(2),server:v.receive_to_processed_ms.toFixed(1),queue:v.queue_wait_ms.toFixed(1),age:(v.effective_age_ms/1000).toFixed(2)}));
   parts.push(t(v.stale?'akv.align_stale':'akv.align_fresh'))}
  return parts.join(' · ')}
+function recoveryStatus(r){
+ const reason=r.mouth&&r.acoustic?'both':r.mouth?'mouth':r.acoustic?'acoustic':r.eligible?'blocked':'idle';
+ const value=(v,n)=>Number.isFinite(v)?v.toFixed(n):'—';
+ return t('akv.recovery_v',{reason:t('akv.recovery.'+reason),score:value(r.mouth_score,4),age:value(r.mouth_age_ms,1),interval:value(r.frame_interval_ms,1)})}
 function renderAudio(){const a=aMeta;if(!a)return;
  if(a.available===false){$('aSt').textContent=t('a.unavailable');writeHTML('aKv',`<span>${t('a.reason')}</span><span>${a.error}</span>`);return}
  const LB=XC_LABEL;
@@ -94,6 +98,7 @@ function renderAudio(){const a=aMeta;if(!a)return;
   [t('akv.gate')]:a.gain<0.5?t('akv.gate_down',{db:(20*Math.log10(Math.max(a.gain,1e-4))).toFixed(0)}):t('akv.gate_pass'),
   [t('akv.mix')]:t('akv.mix_v',{e:(a.mix*100).toFixed(0),o:(100-a.mix*100).toFixed(0),g:a.gain}),
   [t('akv.align')]:visionAlignment(a),
+  ...(a.recovery?{[t('akv.recovery')]:recoveryStatus(a.recovery)}:{}),
   [t('akv.asr')]:a.asr?t('akv.asr_v',{p:a.asr.provider==='none'?t('akv.asr_off'):a.asr.provider,k:a.asr.key_set?t('key.set'):t('key.unset'),c:a.asr.connected?t('akv.connected'):t('akv.disconnected'),s:a.asr.sent_s}):'—',
   [t('akv.target')]:a.target_track!=null?`#${a.target_track}${a.distance!=null?' · '+a.distance+' m':''}`:'—','P(group)':a.p_group??'—',
   [t('akv.rtf')]:t('akv.rtf_v',{all:a.rtf??'—',recent:a.rtf_recent??'—'}),[t('akv.proc_p95')]:t('akv.proc_p95_v',{p:a.proc_p95_ms??'—',a:a.queue_wait_ms_avg??'—',q:a.queue_wait_ms_p95??'—'}),[t('akv.proc')]:t('akv.proc_v',{ms:a.proc_ms,q:a.queue,d:a.dropped,r:a.resets}),

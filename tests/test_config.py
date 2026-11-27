@@ -3,6 +3,15 @@ from dataclasses import fields
 from presencekit.tracker import RANGES, Config
 
 
+def test_recovery_mode_migrates_the_experimental_switch():
+    cfg = Config(audio_pipeline="puresound", xcheck_mouth_recovery=True)
+    assert cfg.mouth_recovery_enabled
+    assert cfg.update({"xcheck_mouth_recovery": True, "xcheck_recovery_mode": "audio"}) == []
+    assert cfg.onset_recovery_enabled and not cfg.mouth_recovery_enabled
+    assert cfg.update({"xcheck_mouth_recovery": "off"}) == []
+    assert cfg.xcheck_recovery_mode == "legacy"
+
+
 def test_ranges_cover_all_fields():
     # npu_delegate_path is server-side only (env PRESENCE_NPU_DELEGATE): never settable over WebSocket
     assert {f.name for f in fields(Config)} - {"npu_delegate_path"} == set(RANGES)

@@ -17,7 +17,9 @@ from pathlib import Path
 
 import numpy as np
 
+from .acoustic_recovery import AcousticRecovery
 from .inference import CATALOG, OrtOptions, default_root, load_model
+from .mouth_motion import FRESH_S, MOUTH_THRESHOLD
 
 SR = 16000
 HOP = 160  # 10 ms
@@ -87,6 +89,11 @@ class Isolator:
         self._emitted = 0
         self.last_vi = self.last_ref = np.zeros(0, np.float32)
         self.resets = getattr(self, "resets", -1) + 1
+
+    @property
+    def next_output_sample(self) -> int:
+        """Input sample index of the next output sample, including negative warm-up indices."""
+        return self._emitted - self.delay
 
     def process(self, x: np.ndarray, mix: float) -> np.ndarray:
         x = np.asarray(x, np.float32).reshape(-1)
@@ -269,6 +276,10 @@ class AudioStream:
         self.calibrated = False
         self._pending = np.zeros(0, np.float32)
         self._raw_pending = np.zeros(0, np.float32)
+        self._input_samples = 0
+        self._iso_origin = 0
+        self._onset_recovery: AcousticRecovery | None = None
+        self._recovery_meta: dict | None = None
         self.compute_s = 0.0
         self.audio_s = 0.0
         self.raw_db = -100.0
@@ -293,9 +304,14 @@ class AudioStream:
         old, self._group_sig = self._group_sig, sig
         changed = old is not None and bool(parts) and (old[0] != sig[0] or (bool(old[1]) and old[1] != parts))
         if self.cfg.iso_reset_on_change and (ng or changed):
-            self.iso.reset()
+            self.reset_isolation()
             return True
         return False
+
+    def reset_isolation(self) -> None:
+        self.iso.reset()
+        self._iso_origin = self._input_samples
+        self._onset_recovery = None
 
     @staticmethod
     def _db(x) -> float:
@@ -311,29 +327,46 @@ class AudioStream:
             iso = self._make_isolator(*settings)
             iso.resets = self.iso.resets + 1
             self.iso, self._iso_settings = iso, settings
+            self._iso_origin = self._input_samples
+            self._onset_recovery = None
             self.mix = min(self.mix, iso.base_mix)
             self._pending = np.zeros(0, np.float32)
 
-    def process(self, pcm16: bytes, snap: dict | None, now: float, vis_age: float = 0.0) -> tuple[bytes, bool]:
+    def process(
+        self, pcm16: bytes, snap: dict | None, now: float, vis_age: float = 0.0, *, mouth_age: float = math.inf
+    ) -> tuple[bytes, bool]:
         """One chunk. The decision uses the VADs up to the previous block (<= one chunk, 20 ms, of lag)."""
         self._sync_params()
         c = self.cfg
         x = np.frombuffer(pcm16, dtype="<i2").astype(np.float32) / 32768.0
         t0 = time.perf_counter()
+        self._input_samples += x.size
+        if not c.onset_recovery_enabled:
+            self._onset_recovery = None
+            self._recovery_meta = None
+        elif self._onset_recovery is None:
+            self._onset_recovery = AcousticRecovery(SR, HOP, self.raw_vad.min_on)
         self.raw_db = self._db(x)
         self._raw_pending = np.concatenate([self._raw_pending, x])
         while self._raw_pending.size >= HOP:
-            self.raw_vad.step(self._raw_pending[:HOP])
+            hop = self._raw_pending[:HOP]
+            was_speech = self.raw_vad.speech
+            speech = self.raw_vad.step(hop)
             self._raw_pending = self._raw_pending[HOP:]
+            if self._onset_recovery is not None:
+                self._onset_recovery.step(hop, self._input_samples - self._raw_pending.size, speech and not was_speech)
         view = self.adjuster.view(snap, vis_age, c, now, self.calibrated)
         adj = self.adjuster.decide(view, self.vad.speech, self.raw_vad.speech, c, self.iso.base_mix)
+        if self._onset_recovery is not None:
+            self._gate_recovery(adj, snap, mouth_age, x.size)
         if adj.label != self.adj.label:
             self.counts[adj.label] += 1
         self.adj = adj
         dt = x.size / SR
         self.mix += (adj.mix - self.mix) * (1 - math.exp(-dt / 0.05))  # 50 ms mix smoothing
         y = self.iso.process(x, self.mix)
-        self._pending = np.concatenate([self._pending, y])
+        # Analyze the recorded VI tap before vision-controlled dry recovery or output gain.
+        self._pending = np.concatenate([self._pending, self.iso.last_vi])
         while self._pending.size >= HOP:
             self.vad.step(self._pending[:HOP])  # clean VAD on the PureSound output (before correction)
             self._pending = self._pending[HOP:]
@@ -348,6 +381,35 @@ class AudioStream:
         self.audio_s += x.size / SR
         self._classified_samples[adj.label] += x.size
         return (np.clip(y, -1, 1) * 32767).astype("<i2").tobytes(), adj.speech
+
+    def _gate_recovery(self, adj: Adjust, snap: dict | None, mouth_age: float, chunk_samples: int) -> None:
+        score = None
+        if self.cfg.mouth_recovery_enabled and snap is not None and 0 <= mouth_age <= FRESH_S:
+            score = next(
+                (
+                    t.get("mouth_motion")
+                    for t in snap.get("tracks", ())
+                    if t["id"] == adj.target_track and t.get("visible_kind") == "detected"
+                ),
+                None,
+            )
+        mouth = score is not None and score > MOUTH_THRESHOLD
+        output_start = self._iso_origin + self.iso.next_output_sample
+        acoustic = self._onset_recovery.allows(output_start, output_start + chunk_samples)
+        eligible = adj.label == "false_reject"
+        if eligible and not (mouth or acoustic):
+            adj.mix = self.iso.base_mix
+            if self.cfg.xcheck_recovery_mode == "audio":
+                adj.speech = False
+                adj.why = "raw speech without a qualifying onset"
+        self._recovery_meta = {
+            "eligible": eligible,
+            "mouth_score": score,
+            "mouth_age_ms": round(mouth_age * 1000, 1) if math.isfinite(mouth_age) else None,
+            "mouth": eligible and mouth,
+            "acoustic": eligible and acoustic,
+            "allowed": eligible and (mouth or acoustic),
+        }
 
     def recording_tracks(self) -> tuple[bytes, bytes]:
         """(vi, raw) PCM16 of the last block, sample-aligned with the returned output (PureSound delay
@@ -375,6 +437,7 @@ class AudioStream:
             "speech": a.speech,
             "clean_vad": self.vad.speech,
             "raw_vad": self.raw_vad.speech,
+            **({"recovery": self._recovery_meta} if self._recovery_meta is not None else {}),
             "gain": round(self.gain, 3),
             "mix": round(self.mix, 3),
             "target_track": a.target_track,

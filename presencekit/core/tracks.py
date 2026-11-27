@@ -24,6 +24,8 @@ class Detection:
     appearance: np.ndarray | None = None  # torso HSV histogram (kalman mode)
     frontal: float | None = None  # frontal-face score from YuNet landmarks (1 = facing the camera)
 
+    mouth_motion: float | None = None
+
     def __post_init__(self):
         if self.face_bbox is None and self.body is None:
             self.face_bbox = self.bbox  # plain face detection (legacy constructor)
@@ -56,6 +58,7 @@ class Track:
     kf: KalmanBox | None = None
     logodds: float = 0.0  # hmm: log P(present)/P(left)
     frontal: float | None = None
+    mouth_motion: float | None = None
     intent: float | None = None  # score: interaction intent in [0, 1] (EMA)
     intent_cues: dict = field(default_factory=dict)
     intent_t: float | None = None

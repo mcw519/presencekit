@@ -185,25 +185,30 @@
   <div class="inspector-head"><h2 data-i18n="nav.settings">設定</h2><button class="button button-ghost button-icon button-small" id="closeSet" type="button" data-inspector-close aria-label="關閉" data-i18n-aria-label="aria.close">×</button></div>
   <div class="inspector-body">
     <section class="inspector-section">
-      <p class="eyebrow" data-i18n="preset.title">預設組合</p>
-      <div class="segmented" id="presets" style="flex-wrap:wrap">
-        <button type="button" data-p="reset" data-i18n="preset.reset">預設</button>
-        <button type="button" data-p="recommended" title="實測調校：Kalman＋機率在場＋意圖分數、姿勢、距離、PureSound（收音 1.6 m）" data-i18n-title="preset.recommended.t" data-i18n="preset.recommended">推薦</button>
-        <button type="button" data-p="lowcam" title="推薦＋低角度鏡頭：更低偵測門檻、更慢判定離開、ROI 放大" data-i18n-title="preset.lowcam.t" data-i18n="preset.lowcam">低角度鏡頭</button>
-        <button type="button" data-p="lowpower" title="移動閘門、embedding 節流、低 fps、偵測寬度 480" data-i18n-title="preset.lowpower.t" data-i18n="preset.lowpower">低功耗</button>
-        <button type="button" data-p="single" data-i18n="preset.single">單人</button>
-        <button type="button" data-p="group" data-i18n="preset.group">多人圍觀</button>
-        <button type="button" data-p="noisy" data-i18n="preset.noisy">吵雜環境</button>
+      <p class="eyebrow" id="modeTitle" data-i18n="preset.title">使用模式</p>
+      <div class="mode-options" id="presets" role="group" aria-labelledby="modeTitle">
+        <button type="button" class="button button-secondary mode-choice" data-p="standard" aria-pressed="false" aria-labelledby="modeStandard" aria-describedby="modeStandardDesc">
+          <strong id="modeStandard" data-i18n="preset.standard">標準</strong>
+          <small id="modeStandardDesc" data-i18n="preset.standard.t">一般使用，以鏡頭和瀏覽器語音偵測判斷在場。</small>
+        </button>
+        <button type="button" class="button button-secondary mode-choice" data-p="near" aria-pressed="false" aria-labelledby="modeNear" aria-describedby="modeNearDesc">
+          <strong id="modeNear" data-i18n="preset.near">近場優先</strong>
+          <small id="modeNearDesc" data-i18n="preset.near.t">用 PureSound 抑制遠場人聲，並用純音訊救回較弱的起音。</small>
+        </button>
+        <button type="button" class="button button-secondary mode-choice" data-p="lowpower" aria-pressed="false" aria-labelledby="modeLow" aria-describedby="modeLowDesc">
+          <strong id="modeLow" data-i18n="preset.lowpower">低功耗</strong>
+          <small id="modeLowDesc" data-i18n="preset.lowpower.t">降低影像更新率和偵測解析度，減少裝置負擔。</small>
+        </button>
       </div>
+      <p id="customMode" class="toggle-hint" role="status" data-i18n="preset.custom" hidden>目前使用自訂設定。選擇模式可套用該組參數。</p>
     </section>
-    <section class="inspector-section">
+    <details class="inspector-section settings-details">
+      <summary data-i18n="set.details">詳細設定</summary>
       <div class="adv-row"><p class="eyebrow" style="margin:0" data-i18n="set.flow">資料流</p>
-        <label class="toggle-row" style="margin:0"><input type="checkbox" id="adv"><span class="toggle-ui"></span><span data-i18n="set.advanced">進階參數</span></label>
+        <label class="toggle-row" style="margin:0"><input type="checkbox" id="adv"><span class="toggle-ui"></span><span data-i18n="set.advanced">顯示所有參數</span></label>
       </div>
       <div class="flow-row" id="flow"></div>
       <div id="groups"></div>
-    </section>
-    <section class="inspector-section">
       <p class="eyebrow" data-i18n="set.io">匯出／匯入</p>
       <div class="io">
         <button class="button button-secondary button-small" id="exp" type="button" data-i18n="set.export">匯出 JSON</button>
@@ -211,7 +216,7 @@
         <input type="file" id="imp" accept="application/json" hidden>
       </div>
       <p class="toggle-hint" data-i18n="set.io_help">設定會自動存在這個瀏覽器（localStorage），每次連線都會套用。伺服器會檢查並限制數值範圍，只套用到你目前的連線。</p>
-    </section>
+    </details>
   </div>
 </aside>
 <div class="toast" id="toast" role="status"></div>

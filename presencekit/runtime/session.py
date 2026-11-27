@@ -321,10 +321,13 @@ class PresenceRuntime:
             data = msg["data"]
             stable = st["tr"].state.value not in ("MAYBE_AWAY", "AWAY")
             submitted = time.monotonic()
+            cfg = st["tr"].cfg
+            frame_ms = client_timestamp(msg.get("t"))
+            frame_args = {"frame_time": frame_ms / 1000} if cfg.mouth_recovery_enabled and frame_ms is not None else {}
 
-            def vision_job(data=data, cfg=st["tr"].cfg, stable=stable, submitted=submitted):
+            def vision_job(data=data, cfg=cfg, stable=stable, submitted=submitted, frame_args=frame_args):
                 started = time.monotonic()
-                result = self.ctx.vision_job(self.proc, data, cfg, stable, self.cid)
+                result = self.ctx.vision_job(self.proc, data, cfg, stable, self.cid, **frame_args)
                 if result is not None:
                     result[1]["executor_wait"] = (started - submitted) * 1000
                 return result
@@ -366,7 +369,7 @@ class PresenceRuntime:
                     )
                 tm["tracker"] = (time.perf_counter() - t1) * 1000
                 aud["vision"] = VisionTiming(
-                    client_timestamp(msg.get("t")), msg["_received_mono"], submitted, time.monotonic()
+                    frame_ms, msg["_received_mono"], submitted, time.monotonic(), tm.get("mouth_frame_interval_ms")
                 )
                 tm["total"] = (time.perf_counter() - t0) * 1000
                 now = time.monotonic()
@@ -497,7 +500,10 @@ class PresenceRuntime:
                 for audio_client, pcm, received in batch:
                     started = time.monotonic()
                     vis_age, timing = decision_timing(vision, audio_client, started, stale_after)
-                    o, sp = a.process(pcm, snap, started, vis_age)
+                    if a.cfg.mouth_recovery_enabled:
+                        o, sp = a.process(pcm, snap, started, vis_age, mouth_age=VisionTiming.mouth_age(timing))
+                    else:
+                        o, sp = a.process(pcm, snap, started, vis_age)
                     done = time.monotonic()
                     res.append(
                         (o, sp, a.recording_tracks() if rec else None, done, done - started, started - received, timing)
@@ -528,6 +534,11 @@ class PresenceRuntime:
             if now - aud["meta_t"] >= 0.1:
                 aud["meta_t"] = now
                 meta = a.meta()
+                if "recovery" in meta:
+                    meta["recovery"] = {
+                        **meta["recovery"],
+                        "frame_interval_ms": vision.mouth_frame_interval_ms if vision is not None else None,
+                    }
                 aud["rtf"] = meta.get("rtf")
                 aud["counts"] = meta.get("counts")
                 out.post(

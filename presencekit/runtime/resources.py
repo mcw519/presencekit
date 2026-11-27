@@ -58,7 +58,7 @@ class VisionBusy(RuntimeError):
     """The shared vision lock could not be acquired in time (another inference is hung or very slow)."""
 
 
-def _vision_job(proc: FrameProcessor, data: bytes, cfg, stable: bool, conn: str | None = None):
+def _vision_job(proc: FrameProcessor, data: bytes, cfg, stable: bool, conn: str | None = None, *, frame_time=None):
     img, dec_ms = decode_jpeg(data)  # in memory only
     if img is None:
         return None
@@ -70,7 +70,7 @@ def _vision_job(proc: FrameProcessor, data: bytes, cfg, stable: bool, conn: str 
         raise VisionBusy(f"vision lock not acquired within {VISION_LOCK_TIMEOUT} s")
     try:
         wait_ms = (time.perf_counter() - t0) * 1000
-        dets, tm = proc.process(img, cfg, stable)
+        dets, tm = proc.process(img, cfg, stable, frame_time=frame_time)
     finally:
         VISION_LOCK.release()
     tm["lock_wait"] = wait_ms

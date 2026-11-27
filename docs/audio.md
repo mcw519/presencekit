@@ -50,7 +50,7 @@ The browser captures the microphone with an `AudioWorklet`, resamples to 16 kHz 
 `iso_dry_blend = 0.9`, it outputs `0.9 × enhanced + 0.1 × aligned input`, matching the upstream default
 sample for sample. Algorithmic latency is 52–62 ms.
 
-In **Settings → Audio**, choose **PureSound** to adjust **Isolated voice share (dry blend)** from 0.01 to 1.00.
+In **Settings → Detailed settings → Audio**, choose **PureSound** to adjust **Isolated voice share (dry blend)** from 0.01 to 1.00.
 The new value applies to the isolation output (`vi.wav`) before the vision cross-check and briefly resets the stream.
 
 ## Step 2: the clean VAD
@@ -58,11 +58,12 @@ The new value applies to the isolation output (`vi.wav`) before the vision cross
 The model has no VAD head, so the **clean VAD** is an energy detector on the *isolated* signal: 10 ms frames, an
 adaptive noise floor (falls instantly, rises about 3 dB/s), speech when the level exceeds
 `max(clean_vad_min_db, floor + clean_vad_margin_db)` for 60 ms, with `clean_vad_hang` (0.3 s) of hangover. The
-same detector on the raw input gives the **raw VAD**, used only to detect missed speech.
+clean VAD reads the same signal as `vi.wav`, before vision-controlled dry recovery and output gain.
+The same detector on the raw input gives the **raw VAD**, used only to detect missed speech.
 
 ## Step 3: the vision cross-check
 
-Vision runs at 0.5–2 frames per second, audio at 50 chunks per second. To line them up, every chunk reads the
+With the default adaptive settings, vision runs at 0.5–2 frames per second and audio at 50 chunks per second. Every chunk reads the
 latest tracking snapshot, and the three facts "someone in the ROI", "someone within `near_range`" and "everyone is
 beyond `near_range`" are each **held for `xcheck_hold`** (0.75 s). "Everyone beyond range" holds only if no near
 person was seen during that time, which protects the first syllable of a near speaker.
@@ -74,7 +75,7 @@ person was seen during that time, which protects the first syllable of a near sp
 | yes | – | nobody in the ROI | `leak` | attenuated to `xcheck_floor_db` (−40 dB) | no |
 | yes | – | everyone beyond `near_range` | `false_accept` | attenuated | no |
 | yes | – | someone within `near_range` | `agree` | unchanged | yes |
-| no | yes | someone within `near_range` | `false_reject` | isolated share capped at `xcheck_recover_mix` (0.3), rest is aligned raw input | yes |
+| no | yes | someone within `near_range` | `false_reject` | aligned raw mix if the selected recovery mode allows it | yes, except when `audio` rejects the onset |
 | otherwise | | | `silence` | unchanged | no |
 | any | | vision uncertain | `acoustic_only` | PureSound output as is | = clean VAD |
 
@@ -101,6 +102,62 @@ the timestamp and decision context it actually used, even if a new frame finishe
 Example: the TV is on and nobody is in front of the device. PureSound passes some of the TV voice (it sounds
 close enough). The clean VAD says "speech", vision says "nobody in the ROI" → `leak`: the chunk is attenuated by
 40 dB and does not count as speech. The session does not start.
+
+### Missed-onset recovery modes
+
+With PureSound and vision cross-check enabled, open **Settings → Detailed settings → Audio → Missed-onset recovery**.
+
+- **Original mix rule** (`legacy`, default) allows the existing dry mix on every `false_reject`.
+- **Audio onset only (experimental)** (`audio`) allows extra raw audio when the acoustic onset qualifies.
+  The camera still supplies the nearby-person check, so this mode can use the usual low frame rate.
+- **Mouth motion and audio (experimental)** (`audiovisual`) also accepts fresh mouth motion from the near track.
+
+SDK callers can set `Config(audio_pipeline="puresound", xcheck_recovery_mode="audio")` and submit video and audio
+on the same monotonic clock. Configs saved with `xcheck_mouth_recovery=true` map to `audiovisual`.
+
+The experimental modes adjust the extra raw-audio mix for a `false_reject` decision. Clean VAD reads `vi` before
+that mix. When vision exceeds `xcheck_stale`, both modes fall back to `acoustic_only`: no new raw recovery is
+allowed, the mix returns toward the configured `vi` blend, and `speech` follows clean VAD.
+
+- **Mouth motion.** YuNet provides eye and mouth-corner landmarks. The eyes align consecutive grayscale face
+  patches for translation, in-plane rotation and scale. OpenCV calculates dense optical flow. The median
+  cheek motion vector estimates shared movement. After subtracting it, the score is the mouth's 80th-percentile
+  flow magnitude minus the cheeks' 80th percentile, floored at zero and divided by mouth width. The median
+  of three consecutive scores must exceed about 0.00459 for the currently selected near track. Face matching
+  requires unambiguous overlap between frames. Skipped, missing, ambiguous and sparse observations break the
+  evidence sequence.
+- **Acoustic onset.** Once raw VAD confirms an onset, use the first 60 ms and the previous 200 ms of raw audio.
+  Require an RMS increase of at least 8 dB and a 1.8–6 kHz band at least 12 dB below the 150 Hz–1.8 kHz band.
+  Allow recovery for output blocks overlapping the first 120 ms of that onset, with the usual mix smoothing.
+  The check uses raw samples already received while PureSound is processing earlier audio.
+
+Without either cue, the mix returns toward the configured `vi` blend. The optional PureSound SDK onset guard and
+`iso_dry_blend` also affect `vi`. Use `iso_dry_blend=1` with the SDK onset guard off when comparing with the
+offline experiment. In `audio` mode, a `false_reject` reports `speech=True` to the session and speech-gated
+ASR only while the qualifying acoustic onset permits recovery. Rejected blocks keep the `false_reject`
+diagnostic label and report `speech=False` without refreshing the session's speech timer. A quiet participant
+can still keep the session open through the configured presence policy. The `legacy` and `audiovisual` modes
+report `speech=True` on `false_reject`. Mouth motion contributes timing evidence and can also arise from silent
+activity. The acoustic thresholds were explored on one near/far recording.
+
+**Check capture cadence and latency for the mouth cue.** Mouth flow requires four successive timestamped frames to produce
+three scores, with gaps of at most 85 ms. The WebSocket also requires comparable audio/video timestamps and
+an effective frame age of at most 85 ms when making the audio decision. The default 0.5–2 fps cadence is too
+sparse, so recovery at those rates relies on the acoustic cue. To run the video experiment, disable adaptive
+fps and set fixed camera fps to up to 24. This mode runs YuNet on timestamped frames even in stable scenes
+to obtain new landmarks. It adds vision work and sends more video. Audio keeps using the available evidence
+without waiting for another frame or adding another PureSound pass.
+
+The audio panel shows the cue, mouth score, age and frame interval. Check the processed frame rate,
+`mouth` timing in the performance panel, and audio processing and queue P95 before choosing a capture rate.
+The recording JSON includes sampled `recovery` diagnostics. To pace a local recording through the same
+WebSocket runtime and compare frame rates without browser or network overhead, run
+`python experiments/puresound_mix/realtime.py BUNDLE OUTPUT.json` in the project's environment.
+
+In one nine-second replay, 0.5 and 2 fps produced no usable mouth scores. At 15 and 24 fps, scores were
+available for 55 of 60 and 59 of 62 sampled audio reports, respectively. At 24 fps, enabling recovery
+increased vision P95 from 2.45 to 13.88 ms. Audio processing P95 was 6.33 ms with the feature off and
+6.31 ms with it on. Measure on the deployment device since inference load, browser and transport vary.
 
 ## Step 4: what the state machine sees
 

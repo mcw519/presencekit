@@ -55,7 +55,7 @@ uv run presencekit            # 開啟 http://127.0.0.1:8000，按「開始」
 ```
 
 瀏覽器只在 `localhost` 或 HTTPS 下允許使用鏡頭。開放給其他人使用前，請先設定 `PRESENCE_TOKEN`
-（見[快速開始](docs/zh-TW/getting-started.md)）。可以在設定中試試「**推薦**」預設組合，開啟較新的演算法。
+（見[快速開始](docs/zh-TW/getting-started.md)）。新瀏覽器預設使用「**近場優先**」。安裝下方的選用音訊套件與模型後，即可使用 PureSound 與純音訊起音救回。
 
 選用的人聲分離：
 

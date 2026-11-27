@@ -87,6 +87,7 @@ class FakeIso:
         self.resets += 1
 
     def process(self, x, mix):
+        self.last_vi = x * self.base_mix
         return x * mix
 
 
@@ -206,7 +207,67 @@ def test_vision_hold_bridges_frame_gaps():
 
 class LoudIso(FakeIso):
     def process(self, x, mix):
-        return np.full_like(x, 0.2)
+        self.last_vi = np.full_like(x, 0.2)
+        return self.last_vi
+
+
+def test_recovered_raw_speech_does_not_trigger_clean_vad():
+    class SilentVI(FakeIso):
+        def process(self, x, mix):
+            self.last_vi = np.zeros_like(x)
+            return (1 - mix / self.base_mix) * x
+
+    stream = AudioStream(Config(), isolator_factory=SilentVI)
+    pcm = np.full(320, 8000, dtype="<i2").tobytes()
+    for k in range(30):
+        out, _ = stream.process(pcm, vsnap(0.5), 10 + k * 0.02, 0.1)
+    assert stream.raw_vad.speech and np.frombuffer(out, "<i2").max() > 1000
+    assert stream.adj.label == "false_reject" and not stream.vad.speech
+
+
+@pytest.mark.parametrize("frequency,expected_audio", [(240, True), (2700, False)])
+@pytest.mark.parametrize("mode", ["audio", "audiovisual"])
+def test_experimental_acoustic_gate_recovers_only_supported_onsets(frequency, expected_audio, mode):
+    class SilentVI(FakeIso):
+        next_output_sample = 0
+
+        def process(self, x, mix):
+            self.next_output_sample += x.size
+            self.last_vi = np.zeros_like(x)
+            return (1 - mix / self.base_mix) * x
+
+    cfg = Config(audio_pipeline="puresound", xcheck_recovery_mode=mode, iso_dry_blend=1)
+    stream = AudioStream(cfg, isolator_factory=SilentVI)
+    x = (4000 * np.sin(np.arange(320) * 2 * np.pi * frequency / SR)).astype("<i2").tobytes()
+    snap = vsnap(0.5)
+    snap["tracks"][0].update(visible_kind="detected", mouth_motion=0.1)
+    for k in range(10):
+        stream.process(bytes(len(x)), snap, k * 0.02)
+    for k in range(3):
+        # No fresh mouth evidence. The acoustic path can independently rescue a short attack.
+        out, speech = stream.process(x, snap, 0.20 + k * 0.02, mouth_age=0.5)
+    assert speech == (expected_audio or mode == "audiovisual")
+    assert stream.adj.label == "false_reject"
+    assert stream.meta()["recovery"]["acoustic"] is expected_audio
+    assert stream.meta()["recovery"]["mouth_score"] is None
+    assert bool(np.frombuffer(out, "<i2").any()) is expected_audio
+
+    for k in range(8):
+        stream.process(x, snap, 0.26 + k * 0.02, mouth_age=0.5)
+    assert stream.adj.mix == stream.iso.base_mix and not stream.meta()["recovery"]["allowed"]
+    _, speech = stream.process(x, snap, 0.42, mouth_age=0.02)
+    assert stream.meta()["recovery"]["mouth"] == (mode == "audiovisual")
+    assert not stream.meta()["recovery"]["acoustic"]
+    assert speech == (mode == "audiovisual")
+
+    _, speech = stream.process(x, snap, 0.44, vis_age=cfg.xcheck_stale + 0.01)
+    assert stream.adj.label == "acoustic_only" and stream.adj.why == "vision stale"
+    assert not speech and not stream.meta()["recovery"]["allowed"]
+
+    cfg.update({"xcheck_recovery_mode": "legacy"})
+    stream.process(x, snap, 0.46)
+    assert "recovery" not in stream.meta()
+    assert stream.adj.mix == cfg.xcheck_recover_mix
 
 
 def test_stream_attenuates_leak_and_counts():

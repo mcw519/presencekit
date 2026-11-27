@@ -13,6 +13,7 @@ import pytest
 
 from presencekit import audio
 from presencekit.config import Config, State
+from presencekit.core.tracks import Detection
 from presencekit.sdk import PresenceEngine
 from presencekit.vision import VisionPipeline
 
@@ -116,6 +117,95 @@ def test_process_audio_needs_the_puresound_pipeline(pipe):
         total += len(out)
         assert step is None  # silence never changes the speech decision
     assert total > 0 and eng.info()["audio"] == "puresound"
+
+
+def test_audio_only_recovery_keeps_a_quiet_near_session_and_ends_after_departure(pipe, monkeypatch):
+    class SilentVI:
+        base_mix = 1.0
+        resets = 0
+        next_output_sample = 0
+
+        def __init__(self, **kwargs):
+            pass
+
+        def reset(self):
+            self.resets += 1
+            self.next_output_sample = 0
+
+        def process(self, raw, mix):
+            self.next_output_sample += raw.size
+            self.last_vi = np.zeros_like(raw)
+            return (1 - mix) * raw
+
+    monkeypatch.setattr(audio, "puresound_available", lambda: (True, "ok"))
+    monkeypatch.setattr(audio, "Isolator", SilentVI)
+    cfg = Config(
+        audio_pipeline="puresound",
+        xcheck_recovery_mode="audio",
+        iso_dry_blend=1.0,
+        distance_enabled=True,
+        near_range=1.3,
+        presence_model="hmm",
+        tracker_mode="kalman",
+        intent_model="score",
+    )
+    eng, t = engine(pipe, config=cfg)
+    near_present = True
+    near_box = (0.33, 0.26, 0.55, 0.55)
+    far_box = (0.66, 0.33, 0.70, 0.39)
+
+    def detections(*args, **kwargs):
+        far = Detection(far_box, 0.95, frontal=1.0)
+        near = Detection(near_box, 0.95, frontal=1.0)
+        return ([near, far] if near_present else [far]), {}
+
+    monkeypatch.setattr(eng.frames, "process", detections)
+    image = np.zeros((16, 16, 3), np.uint8)
+    silence = bytes(640)
+    samples = np.arange(320) / audio.SR
+    near_onset = (4000 * np.sin(2 * np.pi * 240 * samples)).astype("<i2").tobytes()
+    far_tone = (4000 * np.sin(2 * np.pi * 2700 * samples)).astype("<i2").tobytes()
+
+    def far_input(i):
+        # Syllable-like pauses lower the adaptive floor while staying within the raw VAD hangover.
+        return far_tone if i % 15 < 10 else silence
+
+    def feed(i, pcm):
+        t[0] = i * 0.02
+        if i % 25 == 0:
+            eng.process_frame(image)
+        eng.process_audio(pcm)
+
+    # Start with a qualifying near utterance, then leave time for the participant to join.
+    for i in range(250):
+        feed(i, near_onset if 25 <= i < 45 else silence)
+    snap = eng.snapshot()
+    assert snap["state"] == State.IDLE and not snap["speaking"]
+    assert len([track for track in snap["tracks"] if track["participant"]]) == 1
+    session = snap["session"]
+    last_speech = eng.core.tracker.last_speech
+
+    # Two minutes with a silent near participant and an ongoing far-side raw VAD signal.
+    for i in range(250, 6250):
+        feed(i, far_input(i))
+        assert eng.state == State.IDLE
+    assert eng._audio.raw_vad.speech and eng._audio.adj.label == "false_reject"
+    assert not eng.snapshot()["speaking"] and eng.core.tracker.last_speech == last_speech
+    assert eng.snapshot()["session"] == session
+
+    # Continue the same raw VAD signal while the near face leaves the camera's view.
+    near_present = False
+    ended_at = None
+    for i in range(6250, 7500):
+        feed(i, far_input(i))
+        assert eng._audio.raw_vad.speech and not eng.core.tracker.speaking
+        if ended_at is not None:
+            assert eng.state == State.ENDED
+        elif eng.state == State.ENDED:
+            ended_at = t[0]
+    snap = eng.snapshot()
+    assert ended_at is not None and ended_at - 125 <= 20
+    assert snap["session"] == session
 
 
 def test_switching_to_host_vad_discards_puresound_state(pipe, monkeypatch):

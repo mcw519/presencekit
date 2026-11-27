@@ -46,14 +46,14 @@ uv run presencekit --host 0.0.0.0 --port 8000
 
 | 功能 | 開啟方式 | 說明 |
 |---|---|---|
-| 身體姿勢（MoveNet） | 設定 → 姿勢，或「推薦」預設組合；要用 ONNX Runtime 取代 LiteRT，先執行一次 `scripts/export_movenet_onnx.py` | [偵測](detection.md)、[SDK](sdk.md#模型) |
-| 距離估計 | 設定 → 距離，再做「距離校正」 | [偵測](detection.md) |
+| 身體姿勢（MoveNet） | 設定 → 詳細設定 → 姿勢，或選擇「近場優先」；要用 ONNX Runtime 取代 LiteRT，先執行一次 `scripts/export_movenet_onnx.py` | [偵測](detection.md)、[SDK](sdk.md#模型) |
+| 距離估計 | 設定 → 詳細設定 → 距離，再做「距離校正」 | [偵測](detection.md) |
 | PureSound 人聲分離 | `uv sync --extra puresound` 和 `uv run python scripts/fetch_puresound_model.py --clone` | [音訊](audio.md) |
-| 雲端語音辨識 | 設定 → 語音辨識，加上 API key | [語音辨識](asr.md) |
-| 跨 session 使用者判斷 | 設定 → Re-ID，明確同意，加上 API key | [Re-ID](reid.md) |
+| 雲端語音辨識 | 設定 → 詳細設定 → 語音辨識，加上 API key | [語音辨識](asr.md) |
+| 跨 session 使用者判斷 | 設定 → 詳細設定 → Re-ID，明確同意，加上 API key | [Re-ID](reid.md) |
 
-提示：設定裡的 **推薦** 預設組合會開啟較新的演算法（Kalman 追蹤、HMM 在場判斷、意圖分數、姿勢、距離、PureSound）。
-一般預設值為了相容舊版，維持保守。
+新瀏覽器預設使用「**近場優先**」。安裝 PureSound 選用功能後，即可使用人聲分離與純音訊起音救回。
+各模式的差異見[使用模式](configuration.md#使用模式)。
 
 ## 開發指令
 

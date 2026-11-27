@@ -6,7 +6,7 @@ const DEF={face_roi:[0.2,0.05,0.8,0.95],mirror_view:true,show_face_roi:true,pose
  distance_calib:1,distance_ema:0.3,zone_min:0.4,zone_max:2,leave_distance:2.5,min_conf:0.4,embed_backend:'fp32',npu_precision:'int8',cos_match_int8:0.4,cos_match:0.4,cos_weak:0.2,iou_match:0.3,embed_ema:0.15,join_seconds:2,grace_seconds:15,
  present_frames:2,absent_frames:3,idle_after:3,present_timeout:15,empty_timeout:5,base_timeout:20,maybe_away_frac:0.5,end_after_away:5,new_group_seconds:3,
  priority_mode:'vision',speech_join:'auto',presence_model:'rules',intent_model:'rules',intent_tau:1,join_threshold:0.6,drop_threshold:0.35,drop_seconds:8,intent_weighted_presence:false,w_facing:0.45,w_distance:0.1,w_dwell:0.1,w_approach:0.05,w_still:0.15,w_center:0.15,leave_halflife:1.5,detect_gain:4,lowconf_factor:0.15,p_active:0.8,p_maybe:0.6,p_away:0.3,away_hold_seconds:1,tracker_mode:'legacy',coast_seconds:2,coast_present_conf:0.4,gate_mahalanobis:9.21,appearance_min_sim:0.6,appearance_ema:0.2,body_min_conf:0.4,present_max_silence:0,motion_gate:true,motion_threshold:0.015,force_detect_seconds:2,embed_throttle:true,embed_interval:3,embed_move_thresh:0.15,adaptive_fps:true,fps_low:0.5,fps_high:2,roi_crop:true,crop_margin:0.1,max_width:640,fps:1,vad_k:2.5,vad_min:0.005,vad_hang:400,
- audio_pipeline:'energy_vad',iso_dry_blend:0.9,iso_onset_guard:false,iso_reset_on_change:true,onset_needs_vision:true,onset_entry_only:true,clean_vad_margin_db:10,clean_vad_min_db:-50,clean_vad_hang:0.3,xcheck_enabled:true,near_range:1,xcheck_hold:0.75,xcheck_stale:2,xcheck_require_calib:false,xcheck_floor_db:-40,xcheck_recover_mix:0.3,xcheck_attack:0.01,xcheck_release:0.05,asr_provider:'none',asr_source:'clean',asr_feed:'speech',asr_region:'global',asr_speech_model:'universal-3-6-pro',asr_language_codes:'zh,en',asr_keyterms:'',asr_format_turns:true,asr_eot_confidence:0.4,asr_min_turn_silence:400,asr_max_turn_silence:1280,reid_enabled:false,reid_consent:false,reid_show_crops:true,reid_provider:'jev',reid_model:'jev-latest',reid_batch:false,reid_threshold:0.9,reid_uncertain_low:0.4,reid_ttl:600,reid_max_refs:3,reid_min_face:0.06,reid_decision_timeout:10,reid_face_wait:3,reid_timeout:2,reid_cooldown:5,reid_cap_per_hour:30,reid_cap_total:200,reid_cost_per_call:0,monitor:'off'};
+ audio_pipeline:'energy_vad',iso_dry_blend:0.9,iso_onset_guard:false,iso_reset_on_change:true,onset_needs_vision:true,onset_entry_only:true,clean_vad_margin_db:10,clean_vad_min_db:-50,clean_vad_hang:0.3,xcheck_enabled:true,near_range:1,xcheck_hold:0.75,xcheck_stale:2,xcheck_require_calib:false,xcheck_floor_db:-40,xcheck_recovery_mode:'legacy',xcheck_recover_mix:0.3,xcheck_attack:0.01,xcheck_release:0.05,asr_provider:'none',asr_source:'clean',asr_feed:'speech',asr_region:'global',asr_speech_model:'universal-3-6-pro',asr_language_codes:'zh,en',asr_keyterms:'',asr_format_turns:true,asr_eot_confidence:0.4,asr_min_turn_silence:400,asr_max_turn_silence:1280,reid_enabled:false,reid_consent:false,reid_show_crops:true,reid_provider:'jev',reid_model:'jev-latest',reid_batch:false,reid_threshold:0.9,reid_uncertain_low:0.4,reid_ttl:600,reid_max_refs:3,reid_min_face:0.06,reid_decision_timeout:10,reid_face_wait:3,reid_timeout:2,reid_cooldown:5,reid_cap_per_hour:30,reid_cap_total:200,reid_cost_per_call:0,monitor:'off'};
 const CLIENT=['monitor','mirror_view','fps','vad_k','vad_min','vad_hang','show_face_roi','show_pose_roi'];
 const BOXES=['face_roi','pose_roi'];
 // Setting metadata (range/step/unit/options). Labels, help text and option names come from the string tables
@@ -94,7 +94,7 @@ const META={
  roi_crop:{bool:true},
  crop_margin:{min:0,max:0.5,step:0.01},
  max_width:{min:96,max:1920,step:16,u:"px"},
- fps:{min:0.5,max:5,step:0.5,u:"fps"},
+ fps:{min:0.5,max:24,step:0.5,u:"fps"},
  vad_k:{min:1.2,max:8,step:0.1,u:"\u00d7"},
  vad_min:{min:0.001,max:0.05,step:0.001},
  vad_hang:{min:100,max:1500,step:50,u:"ms"},
@@ -113,6 +113,7 @@ const META={
  xcheck_stale:{min:0.2,max:30,step:0.1,u:"s"},
  xcheck_require_calib:{bool:true},
  xcheck_floor_db:{min:-80,max:0,step:1,u:"dB"},
+ xcheck_recovery_mode:{opts:{legacy:1,audio:1,audiovisual:1}},
  xcheck_recover_mix:{min:0,max:0.9,step:0.05},
  xcheck_attack:{min:0.001,max:0.5,step:0.001,u:"s"},
  xcheck_release:{min:0.005,max:2,step:0.005,u:"s"},
@@ -145,19 +146,29 @@ const META={
  reid_cap_per_hour:{min:1,max:600,step:1,u:"@times"},
  reid_cap_total:{min:1,max:10000,step:1,u:"@times"},
  reid_cost_per_call:{min:0,max:10,step:0.0001}};
-// "Recommended" = the full set tuned in a field test (low-angle robot camera, one person talking up close);
-// the scenario presets start from it and adjust a few values
-const REC={tracker_mode:'kalman',presence_model:'hmm',intent_model:'score',pose_enabled:true,distance_enabled:true,
- audio_pipeline:'puresound',xcheck_enabled:true,near_range:1.6,min_conf:0.4,leave_halflife:1.5,force_detect_seconds:2,
- join_seconds:1.5,grace_seconds:10,face_roi:[0.25,0.1,0.8,0.89],pose_roi:[0.18,0.04,0.85,0.92]};
-const PRESETS={
- lowcam:{...REC,min_conf:0.35,leave_halflife:2,force_detect_seconds:1.5,face_roi:[0.2,0.05,0.85,0.95],pose_roi:[0.1,0,0.9,1],body_min_conf:0.35},
- single:{...REC,face_roi:[0.25,0.05,0.75,0.95],present_timeout:45,empty_timeout:5,new_group_seconds:3,absent_frames:3},
- group:{...REC,face_roi:[0.08,0.02,0.92,0.98],join_seconds:3,grace_seconds:20,present_frames:2,absent_frames:4,present_timeout:90,empty_timeout:8,new_group_seconds:5,cos_match:0.42,fps:2,near_range:2},
- noisy:{...REC,priority_mode:'vision',vad_k:3.5,vad_min:0.02,vad_hang:300,min_conf:0.5,near_range:1.2,base_timeout:15,present_timeout:45,empty_timeout:5}};
+// All modes own the same keys so a switch clears settings inherited from another mode.
+const modeOverrides={
+ standard:{},
+ near:{tracker_mode:'kalman',presence_model:'hmm',intent_model:'score',pose_enabled:true,roi_rule:'either',
+  priority_mode:'vision',present_max_silence:0,distance_enabled:true,near_range:1.3,adaptive_fps:false,fps:2,
+  audio_pipeline:'puresound',iso_dry_blend:1,iso_onset_guard:false,iso_reset_on_change:true,xcheck_enabled:true,
+  xcheck_recovery_mode:'audio',xcheck_recover_mix:0.3,xcheck_hold:0.75,xcheck_stale:2,xcheck_require_calib:false,
+  clean_vad_min_db:-50,clean_vad_margin_db:10,clean_vad_hang:0.3},
+ lowpower:{motion_gate:true,embed_throttle:true,embed_interval:5,adaptive_fps:true,fps_low:0.5,fps_high:1,
+  roi_crop:true,max_width:480}};
+const modeKeys=[...new Set(Object.values(modeOverrides).flatMap(Object.keys))];
+const modeDefaults=Object.fromEntries(modeKeys.map(key=>[key,DEF[key]]));
+const MODES=Object.fromEntries(Object.entries(modeOverrides).map(([mode,overrides])=>[mode,{...modeDefaults,...overrides}]));
 const KEY='presence-cfg-v1';
-const migrate=o=>{o={...o};if(!o._v091){if(o.max_width===320)o.max_width=640;o._v091=1}if(o.roi&&!o.face_roi)o.face_roi=o.roi;delete o.roi;return o};
-let cfg=Object.assign(structuredClone({...DEF,_v091:1}),migrate(JSON.parse(localStorage.getItem(KEY)||'{}')));cfg.monitor='off';// monitoring always starts off (avoids feedback)
+const migrate=o=>{o={...o};if(!o._v091){if(o.max_width===320)o.max_width=640;o._v091=1}if(o.roi&&!o.face_roi)o.face_roi=o.roi;delete o.roi;
+ if(!('xcheck_recovery_mode' in o)&&[true,1,'true','1','on'].includes(o.xcheck_mouth_recovery))o.xcheck_recovery_mode='audiovisual';
+ delete o.xcheck_mouth_recovery;return o};
+const savedConfig=localStorage.getItem(KEY);
+let cfg=Object.assign(
+ structuredClone({...DEF,_v091:1}),
+ savedConfig===null?MODES.near:migrate(JSON.parse(savedConfig))
+);
+cfg.monitor='off';// monitoring always starts off (avoids feedback)
 const save=()=>localStorage.setItem(KEY,JSON.stringify(cfg));
 const toast=t=>{const e=$('toast');e.textContent=t;e.classList.add('is-visible');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('is-visible'),2200)};
 const clamp=(k,v)=>{const m=META[k];if(m.text)return String(v).slice(0,2000);if(m.bool)return v===true||v==='true'||v===1;if(m.opts)return m.opts[v]?v:DEF[k];return Math.min(m.max,Math.max(m.min,Number(v)))};
@@ -189,10 +200,10 @@ const MODULES=[
   status:c=>`${c.presence_model==='hmm'?t('st.hmm'):t('st.rules')} · ${t('prio.'+c.priority_mode)}`},
  {id:'state',keys:['idle_after','present_timeout','empty_timeout','base_timeout','present_max_silence','maybe_away_frac','end_after_away','new_group_seconds'],adv:['maybe_away_frac','base_timeout'],
   rules:{present_max_silence:{need:[EQ('priority_mode','vision'),'need.vision_only']},present_timeout:{need:[c=>c.priority_mode!=='vision','need.not_vision']}},status:c=>t('st.timeout',{a:c.present_timeout,b:c.empty_timeout})},
- {id:'audio',gate:'audio_pipeline',keys:['onset_entry_only','onset_needs_vision','iso_dry_blend','iso_onset_guard','iso_reset_on_change','clean_vad_margin_db','clean_vad_min_db','clean_vad_hang','xcheck_enabled','near_range','xcheck_hold','xcheck_stale','xcheck_require_calib','xcheck_floor_db','xcheck_recover_mix','xcheck_attack','xcheck_release'],
+ {id:'audio',gate:'audio_pipeline',keys:['onset_entry_only','onset_needs_vision','iso_dry_blend','iso_onset_guard','iso_reset_on_change','clean_vad_margin_db','clean_vad_min_db','clean_vad_hang','xcheck_enabled','near_range','xcheck_hold','xcheck_stale','xcheck_require_calib','xcheck_floor_db','xcheck_recovery_mode','xcheck_recover_mix','xcheck_attack','xcheck_release'],
   adv:['iso_reset_on_change','clean_vad_hang','xcheck_stale','xcheck_attack','xcheck_release','xcheck_recover_mix','clean_vad_min_db'],
   rules:{...Object.fromEntries(['onset_entry_only','onset_needs_vision','iso_dry_blend','iso_onset_guard','iso_reset_on_change','clean_vad_margin_db','clean_vad_min_db','clean_vad_hang','xcheck_enabled'].map(k=>[k,{show:PS}])),
-   ...Object.fromEntries(['near_range','xcheck_hold','xcheck_stale','xcheck_floor_db','xcheck_recover_mix','xcheck_attack','xcheck_release'].map(k=>[k,{show:c=>PS(c)&&c.xcheck_enabled}])),
+   ...Object.fromEntries(['near_range','xcheck_hold','xcheck_stale','xcheck_floor_db','xcheck_recovery_mode','xcheck_recover_mix','xcheck_attack','xcheck_release'].map(k=>[k,{show:c=>PS(c)&&c.xcheck_enabled}])),
    near_range:{show:c=>PS(c)&&c.xcheck_enabled,need:[DIST,'need.near_range']},
    xcheck_require_calib:{show:c=>PS(c)&&c.xcheck_enabled,need:[DIST,'need.distance']}},
   status:c=>PS(c)?`PureSound${c.xcheck_enabled?t('st.xcheck'):''}`:t('st.browser_vad')},
@@ -210,9 +221,6 @@ const MODULES=[
   rules:{motion_threshold:{show:ON('motion_gate')},force_detect_seconds:{show:ON('motion_gate')},embed_interval:{show:ON('embed_throttle')},embed_move_thresh:{show:ON('embed_throttle')},fps_low:{show:ON('adaptive_fps')},fps_high:{show:ON('adaptive_fps')},crop_margin:{show:ON('roi_crop')}},
   status:c=>`${t('st.gate',{v:c.motion_gate?t('st.on'):t('st.off')})} · ${c.max_width}px`},
  {id:'display',keys:['mirror_view','show_face_roi','show_pose_roi'],adv:[],rules:{show_pose_roi:{show:ON('pose_enabled')}},status:c=>c.mirror_view?t('st.mirror'):t('st.raw')}];
-const MOD_PRESETS={
- recommended:{...REC},
- lowpower:{motion_gate:true,embed_throttle:true,embed_interval:5,adaptive_fps:true,fps_low:0.5,fps_high:1,roi_crop:true,max_width:480,pose_enabled:false,distance_enabled:false}};
 let ADV=localStorage.getItem('presence-adv')==='1';
 function ruleOf(m,k){return(m.rules||{})[k]||{}}
 function buildUI(){
@@ -255,7 +263,13 @@ function applyDeps(){for(const m of MODULES){
   if(gn){const bad=m.gateNeed&&!m.gateNeed[0](cfg)&&cfg[m.gate]!=='none';gn.textContent=bad?'⚠ '+t(m.gateNeed[1]):gateOff?t('gate.off'):'';}
   const body=$('mod_'+m.id).querySelector('.mbody'),hid=m.keys.filter(k=>$('row_'+k)&&$('row_'+k).hidden).length;
   body.dataset.hidden=hid;}}
+function syncModeSelection(){
+ const current=Object.entries(MODES).find(([,values])=>modeKeys.every(key=>cfg[key]===values[key]));
+ modeButtons.forEach(b=>b.setAttribute('aria-pressed',String(current?.[0]===b.dataset.p)));
+ $('customMode').hidden=Boolean(current);
+}
 function syncUI(skip){if(cfg.asr_provider==='none')captionOff();
+ syncModeSelection();
  document.querySelectorAll('#groups input[data-k],#groups select[data-k]').forEach(inp=>{if(inp===skip)return;const k=inp.dataset.k;
   if(inp.type==='checkbox'){inp.checked=!!cfg[k];return}
   const v=BOXES.includes(k)?(+cfg[k][+inp.dataset.i]).toFixed(2):cfg[k];inp.value=v;
@@ -269,8 +283,9 @@ function setCfg(part,src,immediate){Object.assign(cfg,part);if(!cfg.reid_enabled
  if(['fps','adaptive_fps','fps_low','fps_high'].some(k=>k in part))restartFrames();draw();}
 function serverCfg(){const o={};for(const k in DEF)if(!CLIENT.includes(k))o[k]=cfg[k];return o}
 function sendCfg(){if(!cfg.reid_enabled||!cfg.reid_consent)clearReidDisplay();if(ws&&ws.readyState===1)ws.send(JSON.stringify({type:'config',config:serverCfg()}))}
-document.querySelectorAll('#presets [data-p]').forEach(b=>b.onclick=()=>{const p=b.dataset.p;
- cfg=Object.assign(structuredClone(DEF),p==='reset'?{}:(PRESETS[p]||MOD_PRESETS[p]));save();syncUI();sendCfg();restartFrames();draw();toast(t('toast.preset',{p:b.textContent}))});
+const modeButtons=document.querySelectorAll('#presets [data-p]');
+modeButtons.forEach(b=>b.onclick=()=>{const mode=b.dataset.p;
+ setCfg(MODES[mode]);toast(t('toast.preset',{p:t('preset.'+mode)}))});
 $('exp').onclick=()=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(cfg,null,2)],{type:'application/json'}));a.download='presence-config.json';a.click()};
 $('impB').onclick=()=>$('imp').click();
 $('imp').onchange=async e=>{try{const j=JSON.parse(await e.target.files[0].text());const n=structuredClone(DEF);
