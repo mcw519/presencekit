@@ -121,24 +121,28 @@ allowed, the mix returns toward the configured `vi` blend, and `speech` follows 
 
 - **Mouth motion.** YuNet provides eye and mouth-corner landmarks. The eyes align consecutive grayscale face
   patches for translation, in-plane rotation and scale. OpenCV calculates dense optical flow. The median
-  cheek motion vector estimates shared movement. After subtracting it, the score is the mouth's 80th-percentile
-  flow magnitude minus the cheeks' 80th percentile, floored at zero and divided by mouth width. The median
-  of three consecutive scores must exceed about 0.00459 for the currently selected near track. Face matching
-  requires unambiguous overlap between frames. Skipped, missing, ambiguous and sparse observations break the
-  evidence sequence.
+  cheek motion vector estimates shared movement; large head jerks (`> 4%` of mouth width) zero out the score,
+  and face boxes must stay matched and stable across consecutive frames. After subtracting cheek motion, the
+  score takes the minimum of (a) the mouth's 80th-percentile flow magnitude minus the cheeks' 80th percentile
+  and (b) the vertical divergence between the upper and lower lip medians, both divided by mouth width. The
+  median of three consecutive scores must exceed about 0.00459 for the currently selected near track. Skipped,
+  missing, ambiguous and sparse observations break the evidence sequence.
 - **Acoustic onset.** Once raw VAD confirms an onset, use the first 60 ms and the previous 200 ms of raw audio.
-  Require an RMS increase of at least 8 dB and a 1.8–6 kHz band at least 12 dB below the 150 Hz–1.8 kHz band.
-  Allow recovery for output blocks overlapping the first 120 ms of that onset, with the usual mix smoothing.
-  The check uses raw samples already received while PureSound is processing earlier audio.
+  Accept either (a) an RMS increase of at least 8 dB with the 1.8–6 kHz band at least 12 dB below the
+  150 Hz–1.8 kHz band, or (b) a strong broadband speech onset (RMS rise ≥ 18 dB, 150 Hz–1.8 kHz rise ≥ 15 dB,
+  and high-to-low tilt ≤ 0 dB). Allow recovery for output blocks overlapping the first 160 ms of that onset,
+  with the usual mix smoothing. The check uses raw samples already received while PureSound is processing
+  earlier audio.
 
 Without either cue, the mix returns toward the configured `vi` blend. The optional PureSound SDK onset guard and
 `iso_dry_blend` also affect `vi`. Use `iso_dry_blend=1` with the SDK onset guard off when comparing with the
-offline experiment. In `audio` mode, a `false_reject` reports `speech=True` to the session and speech-gated
-ASR only while the qualifying acoustic onset permits recovery. Rejected blocks keep the `false_reject`
-diagnostic label and report `speech=False` without refreshing the session's speech timer. A quiet participant
-can still keep the session open through the configured presence policy. The `legacy` and `audiovisual` modes
-report `speech=True` on `false_reject`. Mouth motion contributes timing evidence and can also arise from silent
-activity. The acoustic thresholds were explored on one near/far recording.
+offline experiment. In both `audio` and `audiovisual` modes, a `false_reject` reports `speech=True` to the
+session and speech-gated ASR only while a qualifying onset (or fresh mouth motion in `audiovisual`) permits
+recovery. Rejected blocks keep the `false_reject` diagnostic label and report `speech=False` without
+refreshing the session's speech timer. A quiet participant can still keep the session open through the
+configured presence policy. Only `legacy` reports `speech=True` unconditionally on `false_reject`. Mouth
+motion contributes timing evidence and can also arise from silent activity. The acoustic thresholds were
+explored on one near/far recording.
 
 **Check capture cadence and latency for the mouth cue.** Mouth flow requires four successive timestamped frames to produce
 three scores, with gaps of at most 85 ms. The WebSocket also requires comparable audio/video timestamps and
@@ -169,8 +173,9 @@ With the PureSound pipeline active, the **corrected** speech flag replaces the b
 - `speech_join = auto` attributes clean speech to the only candidate, in every priority mode.
 - If the audio stream stops for more than 1 s the browser VAD takes over again.
 
-When the group changes (NEW_GROUP, a new session, or a different participant set) the isolation state is reset
-(`iso_reset_on_change`), costing about 32 ms of output.
+When the group changes (`NEW_GROUP`, a new session, or a disjoint replacement of the participant set) the
+isolation state is reset (`iso_reset_on_change`), costing about 32 ms of output. Adding or removing a member while
+an existing participant stays in view keeps the isolator running.
 
 ## Listening and recording
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import cv2
@@ -9,6 +10,7 @@ import numpy as np
 
 FACE_SIZE = 128
 FRESH_S = 0.085
+MAX_HEAD_SHIFT = 0.04
 
 
 def align_face(frame, row):
@@ -37,15 +39,23 @@ def mouth_motion(previous, current):
     x, y = abs(xx - midpoint[0]) / width, abs(yy - midpoint[1]) / width
     lip = (x <= 0.49) & (y <= 0.26)
     cheeks = (x >= 0.54) & (x <= 0.88) & (y <= 0.26)
-    if not lip.any() or not cheeks.any():
+    upper = lip & (yy < midpoint[1])
+    lower = lip & (yy >= midpoint[1])
+    if not upper.any() or not lower.any() or not cheeks.any():
         return None
     flow = cv2.calcOpticalFlowFarneback(prev_patch, patch, None, 0.5, 2, 13, 2, 5, 1.1, 0)
     shift = np.median(flow[cheeks], axis=0)
-    motion = np.linalg.norm(flow - shift, axis=2)
-    # Compare local motion against cheeks to suppress common landmark jitter/head movement.
+    if float(np.linalg.norm(shift)) / width > MAX_HEAD_SHIFT:
+        return 0.0
+    rel = flow - shift
+    motion = np.linalg.norm(rel, axis=2)
+    # Compare local motion against cheeks to suppress common landmark jitter/head movement,
+    # and require vertical upper-vs-lower lip divergence so silent head turns/smiles do not fire.
     lip_motion = np.percentile(motion[lip], 80)
     cheek_motion = np.percentile(motion[cheeks], 80)
-    return float(max(0, lip_motion - cheek_motion) / width)
+    orig = max(0.0, float(lip_motion - cheek_motion) / width)
+    div_vy = abs(float(np.median(rel[lower, 1]) - np.median(rel[upper, 1]))) / width
+    return min(orig, div_vy)
 
 
 MOUTH_THRESHOLD = 0.004587638191878796
@@ -56,6 +66,19 @@ class MotionSample:
     bbox: tuple
     patch: tuple
     scores: tuple[float, ...] = ()
+
+
+def _box_stable(old_box: tuple, new_box: tuple) -> bool:
+    ow = old_box[2] - old_box[0]
+    nw = new_box[2] - new_box[0]
+    if ow <= 0 or nw <= 0:
+        return False
+    scale = nw / ow
+    if not (0.75 <= scale <= 1.33):
+        return False
+    dx = ((new_box[0] + new_box[2]) - (old_box[0] + old_box[2])) / 2
+    dy = ((new_box[1] + new_box[3]) - (old_box[1] + old_box[3])) / 2
+    return math.hypot(dx, dy) <= ow * 0.25
 
 
 class MouthMotion:
@@ -75,7 +98,9 @@ class MouthMotion:
         for new, candidates in zip(samples, matches, strict=True):
             if len(candidates) == 1:
                 old = candidates[0]
-                if sum(any(candidate is old for candidate in group) for group in matches) == 1:
+                if sum(any(candidate is old for candidate in group) for group in matches) == 1 and _box_stable(
+                    old.bbox, new.bbox
+                ):
                     score = mouth_motion(old.patch, new.patch)
                     if score is not None:
                         new.scores = (*old.scores[-2:], score)

@@ -293,7 +293,7 @@ class AudioStream:
         return Isolator(onset_guard=onset_guard, dry_blend=dry_blend)
 
     def on_vision(self, snap: dict | None, now: float) -> bool:
-        """Reset the stream on NEW_GROUP / session change / participant set change. Returns True if reset."""
+        """Reset the stream on NEW_GROUP / session change / disjoint participant change. Returns True if reset."""
         if snap is None:
             return False
         parts = frozenset(t["id"] for t in snap.get("tracks", []) if t["participant"])
@@ -302,7 +302,9 @@ class AudioStream:
         if ng:
             self._ng_t = max(ng)
         old, self._group_sig = self._group_sig, sig
-        changed = old is not None and bool(parts) and (old[0] != sig[0] or (bool(old[1]) and old[1] != parts))
+        # Only reset within a session when the active participant set is completely replaced; adding or dropping
+        # a member while at least one participant stays in view must not wipe DPCRN's recurrent state mid-speech.
+        changed = old is not None and bool(parts) and (old[0] != sig[0] or (bool(old[1]) and old[1].isdisjoint(parts)))
         if self.cfg.iso_reset_on_change and (ng or changed):
             self.reset_isolation()
             return True
@@ -399,9 +401,8 @@ class AudioStream:
         eligible = adj.label == "false_reject"
         if eligible and not (mouth or acoustic):
             adj.mix = self.iso.base_mix
-            if self.cfg.xcheck_recovery_mode == "audio":
-                adj.speech = False
-                adj.why = "raw speech without a qualifying onset"
+            adj.speech = False
+            adj.why = "raw speech without a qualifying onset"
         self._recovery_meta = {
             "eligible": eligible,
             "mouth_score": score,
