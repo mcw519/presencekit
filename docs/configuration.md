@@ -56,7 +56,7 @@ key belongs to exactly one group in `presencekit.config.GROUPS` (`core`, `tracke
 | Mode | Settings |
 |---|---|
 | Standard | Browser VAD, default tracking and presence rules, adaptive 0.5–2 fps |
-| Near-field priority | PureSound at 100% isolation with SDK onset protection off, audio-only onset recovery, 1.3 m near range, fixed 2 fps, vision priority, Kalman tracking, HMM presence, intent scoring, pose and distance |
+| Near-field priority | PureSound at 100% isolation with SDK onset protection off, audio-only onset recovery, 1.3 m near range and conversation zone, fixed 2 fps, vision priority, Kalman tracking, HMM presence, intent scoring, pose and distance |
 | Low power | Browser VAD, adaptive 0.5–1 fps, detection width up to 480 px, motion gating and 5 s embedding throttling |
 
 Choose a mode to apply its audio, tracking and performance parameters. Camera regions, distance calibration,

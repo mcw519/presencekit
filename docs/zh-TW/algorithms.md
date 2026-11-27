@@ -90,7 +90,7 @@ flowchart TB
    - **朝向（`orientation(body)`）**：依鼻子（0.35）、雙眼（0.25）、鏡像肩序 `ls.x > rs.x`（0.20）與肩寬／軀幹高比例（最多 0.20）給出 `0..1` 分數，分為 `"facing"`（≥ 0.6）、`"side"`（≥ 0.3）或 `"away"`（< 0.3）。
    - **距離（`estimate_distance()`）**：以針孔幾何 `d = (real_width * f_px) / box_width_px * distance_calib` 計算（正規化焦距 `f_px = 0.5 / tan(hfov / 2)`）。正面優先用臉寬、否則用肩寬，經 `distance_ema`（0.3）平滑，並依 `recede_ratio`（0.1）追蹤約 2 秒內的距離趨勢 `trend`（`approaching` / `receding` / `steady`）。
 5. **選用嘴部動作（`mouth_motion.py`）**：
-   - 於 `xcheck_recovery_mode == "audiovisual"` 時啟用。在連續影格間隔 ≤ `FRESH_S = 0.085 s` 時，依雙眼關鍵點仿射對齊成 `128×128` 灰階圖塊，計算 Farneback 光流並扣除臉頰中位數位移（抑制頭部晃動），輸出正規化嘴唇相對於臉頰的 3 幀中位數動作量。
+   - 於 `xcheck_recovery_mode == "audiovisual"` 時啟用。在連續影格間隔 ≤ `FRESH_S = 0.085 s` 且臉框尺度與中心穩定時，依雙眼關鍵點仿射對齊成 `128×128` 灰階圖塊，計算 Farneback 光流並扣除臉頰中位數位移，排除頭部瞬時大位移（`> 4%` 嘴寬），輸出「嘴部超額位移」與「上下唇垂直張合差值」較小者的 3 幀中位數。
 
 > 細節：[偵測](detection.md) · [效能](performance.md)
 
@@ -223,7 +223,7 @@ stateDiagram-v2
 
 當 `audio_pipeline == "puresound"` 時，每 20 ms 的 16 kHz PCM16 音訊區塊依序經過：
 
-1. **人聲分離（`Isolator`）**：以 10 ms hop（512 點 STFT，30 ms 前瞻）執行 `dpcrn_curriculum_v2.onnx`，依 `iso_dry_blend`（預設 0.9，近場優先模式為 1.0）混合增強語音與對齊後的原始音訊。當發生 `NEW_GROUP`、session 切換或參與者集合改變且 `iso_reset_on_change` 開啟時，自動重置隔離器狀態。
+1. **人聲分離（`Isolator`）**：以 10 ms hop（512 點 STFT，30 ms 前瞻）執行 `dpcrn_curriculum_v2.onnx`，依 `iso_dry_blend`（預設 0.9，近場優先模式為 1.0）混合增強語音與對齊後的原始音訊。當發生 `NEW_GROUP`、session 切換或參與者集合完全不相交替換且 `iso_reset_on_change` 開啟時，自動重置隔離器狀態（同群組內仍有原參與者留存時不重置）。
 2. **雙路 `CleanVAD`**：分別在**增強後訊號（`clean`）**與**原始訊號（`raw`）**上追蹤自適應底噪（下降即時、上升約 3 dB/s）。能量超過 `max(min_db, floor + margin_db)` 持續 60 ms 即判定說話，並有 `clean_vad_hang`（0.3 秒）延遲關閉。
 3. **視覺時序對齊（`CrossCheckAdjuster.view`）**：以 `age = max(vis_age, max(0, capture_gap))` 判斷視覺新鮮度。若無快照、`age > xcheck_stale`（2.0 秒）或 `path == "uncertain"`，則視覺不可用（`usable=False`）。否則將 `person`、`near`（`<= near_range`）與 `all_far` 各保持 `xcheck_hold`（0.75 秒），且只要 `near` 仍在保持期間就壓制 `all_far`，保護近場講者的第一個音節。
 4. **決策表（`CrossCheckAdjuster.decide`）**：
@@ -233,8 +233,8 @@ stateDiagram-v2
    - `clean` 且 `near` → `agree`（增益 1.0，`speech = True`）。
    - `not clean` 且 `raw` 且 `near` → `false_reject`，依 `xcheck_recovery_mode` 決定行為：
      - `legacy`：混合 `xcheck_recover_mix`（0.3）增強訊號＋ 0.7 延遲對齊原始訊號，`speech = True`。
-     - `audio`：由 `AcousticRecovery` 檢查原始起音頻譜（能量上升 ≥ 8 dB 且高低頻斜率 ≤ −12 dB，維持 `HOLD_S = 0.12 s`），符合才放行起音救回（`speech = True`），否則壓制（`speech = False`）。
-     - `audiovisual`：只要 `AcousticRecovery` 放行，**或**場上近距離可見軌跡具備新鮮嘴部動作（`mouth_motion >= MOUTH_THRESHOLD`）即放行救回。
+     - `audio`：由 `AcousticRecovery` 檢查原始起音頻譜（能量上升 ≥ 8 dB 且傾角 ≤ −12 dB，或強寬頻語音能量上升 ≥ 18 dB、150–1800 Hz 上升 ≥ 15 dB 且傾角 ≤ 0 dB，維持 `HOLD_S = 0.16 s`），符合才放行起音救回（`speech = True`），否則壓制（`speech = False`）。
+     - `audiovisual`：只要 `AcousticRecovery` 放行，**或**場上近距離可見軌跡具備新鮮嘴部動作（`mouth_motion >= MOUTH_THRESHOLD`）即放行救回（`speech = True`），否則同時壓制原音混回與 `speech = False`。
    - 其餘情況 → `silence`（增益 1.0，`speech = False`）。
 
 增益切換以 `xcheck_attack`（10 ms）與 `xcheck_release`（50 ms）平滑漸變，避免爆音。
@@ -262,5 +262,5 @@ stateDiagram-v2
 | 模式 | 追蹤 | 意圖 | 在場 | 音訊 | 姿態與距離 | FPS |
 |---|---|---|---|---|---|---|
 | **標準模式** | `legacy` | `rules` | `rules` | `energy_vad` | 關閉 | 自適應 0.5–2 |
-| **近場優先** *（新瀏覽器預設）* | `kalman` | `score` | `hmm` | `puresound`（`iso_dry_blend=1.0`, `iso_onset_guard=false`, `xcheck_recovery_mode="audio"`, `near_range=1.3`） | 開啟 | 固定 2 |
+| **近場優先** *（新瀏覽器預設）* | `kalman` | `score` | `hmm` | `puresound`（`iso_dry_blend=1.0`, `iso_onset_guard=false`, `xcheck_recovery_mode="audio"`, `near_range=1.3`） | 開啟（`zone_max=1.3`） | 固定 2 |
 | **省電模式** | `legacy` | `rules` | `rules` | `energy_vad` | 關閉（`max_width=480`, `embed_interval=5.0`） | 自適應 0.5–1 |

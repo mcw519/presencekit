@@ -41,6 +41,7 @@ def test_three_modes_are_valid_and_near_uses_audio_recovery():
         intent_model="score",
         pose_enabled=True,
         distance_enabled=True,
+        zone_max=1.3,
         audio_pipeline="puresound",
         near_range=1.3,
         iso_dry_blend=1,

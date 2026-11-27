@@ -150,7 +150,7 @@ const META={
 const modeOverrides={
  standard:{},
  near:{tracker_mode:'kalman',presence_model:'hmm',intent_model:'score',pose_enabled:true,roi_rule:'either',
-  priority_mode:'vision',present_max_silence:0,distance_enabled:true,near_range:1.3,adaptive_fps:false,fps:2,
+  priority_mode:'vision',present_max_silence:0,distance_enabled:true,zone_max:1.3,near_range:1.3,adaptive_fps:false,fps:2,
   audio_pipeline:'puresound',iso_dry_blend:1,iso_onset_guard:false,iso_reset_on_change:true,xcheck_enabled:true,
   xcheck_recovery_mode:'audio',xcheck_recover_mix:0.3,xcheck_hold:0.75,xcheck_stale:2,xcheck_require_calib:false,
   clean_vad_min_db:-50,clean_vad_margin_db:10,clean_vad_hang:0.3},

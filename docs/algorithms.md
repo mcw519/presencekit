@@ -94,7 +94,7 @@ Defined in `presencekit/core/tracks.py`, `presencekit/core/types.py`, `presencek
    - **Orientation (`orientation(body)`)**: Scores `0..1` from nose (0.35), eyes (0.25), mirror shoulder order `ls.x > rs.x` (0.20), and shoulder-to-torso width ratio (up to 0.20). Maps to `"facing"` (≥ 0.6), `"side"` (≥ 0.3), or `"away"` (< 0.3).
    - **Distance (`estimate_distance()`)**: Uses pinhole geometry `d = (real_width * f_px) / box_width_px * distance_calib`, where `f_px = 0.5 / tan(hfov / 2)` (normalized). Prefers face width when facing, shoulder width when available, smoothed with `distance_ema` (0.3). Tracks `trend` (`approaching` / `receding` / `steady`) over ~2 s using `recede_ratio` (0.1).
 5. **Optional Mouth Motion (`mouth_motion.py`)**:
-   - Active when `xcheck_recovery_mode == "audiovisual"`. Aligns consecutive frames (gap ≤ `FRESH_S = 0.085 s`) into `128×128` grayscale patches via eye landmarks, computes Farneback optical flow, subtracts median cheek motion (suppressing head jitter), and outputs the 3-frame median lip-to-cheek motion normalized by mouth width.
+   - Active when `xcheck_recovery_mode == "audiovisual"`. Aligns consecutive frames (gap ≤ `FRESH_S = 0.085 s`, stable box scale/center) into `128×128` grayscale patches via eye landmarks, computes Farneback optical flow, rejects rigid head shifts (`> 4%` of mouth width), and outputs the 3-frame median of `min(excess_lip_motion, vertical_lip_divergence) / width`.
 
 > Details: [Detection](detection.md) · [Performance](performance.md)
 
@@ -227,7 +227,7 @@ Key assembly rules:
 
 When `audio_pipeline == "puresound"`, every 20 ms 16 kHz PCM16 chunk runs through:
 
-1. **Isolation (`Isolator`)**: Streams 10 ms hops (512-point STFT, 30 ms look-ahead) through `dpcrn_curriculum_v2.onnx`, blending `iso_dry_blend` (default 0.9, `Near-field priority` 1.0) of enhanced speech with delay-aligned raw input. Automatically resets (`iso_reset_on_change`) on `NEW_GROUP`, session change, or participant-set change.
+1. **Isolation (`Isolator`)**: Streams 10 ms hops (512-point STFT, 30 ms look-ahead) through `dpcrn_curriculum_v2.onnx`, blending `iso_dry_blend` (default 0.9, `Near-field priority` 1.0) of enhanced speech with delay-aligned raw input. Automatically resets (`iso_reset_on_change`) on `NEW_GROUP`, session change, or disjoint replacement of the participant set (preserving state while overlapping group members join or drop).
 2. **Dual `CleanVAD`**: Tracks adaptive noise floor (falls immediately, rises ~3 dB/s) on both the **enhanced** signal (`clean`) and **raw** input (`raw`). Speech requires `level > max(min_db, floor + margin_db)` for 60 ms (`min_on`), with `clean_vad_hang` (0.3 s) hangover.
 3. **Vision Alignment (`CrossCheckAdjuster.view`)**: Computes freshness `age = max(vis_age, max(0, capture_gap))`. If `snap` is missing, `age > xcheck_stale` (2.0 s), or `path == "uncertain"`, vision is `usable=False`. Otherwise, `person`, `near` (within `near_range`), and `all_far` are each held for `xcheck_hold` (0.75 s), with `all_far` suppressed whenever `near` is held (protecting near-speaker onsets).
 4. **Decision Table (`CrossCheckAdjuster.decide`)**:
@@ -237,8 +237,8 @@ When `audio_pipeline == "puresound"`, every 20 ms 16 kHz PCM16 chunk runs throug
    - `clean` and `near` → `agree` (gain 1.0, `speech = True`).
    - `not clean` and `raw` and `near` → `false_reject`. Behavior depends on `xcheck_recovery_mode`:
      - `legacy`: mixes `xcheck_recover_mix` (0.3) enhanced + 0.7 delay-aligned raw, `speech = True`.
-     - `audio`: uses `AcousticRecovery` (raw onset spectral rise ≥ 8 dB and high-to-low tilt ≤ −12 dB, held for `HOLD_S = 0.12 s`) to decide whether to recover the onset (`speech = True`) or keep it suppressed (`speech = False`).
-     - `audiovisual`: recovers when either `AcousticRecovery` allows **or** a near visible track has fresh `mouth_motion >= MOUTH_THRESHOLD` (`~0.00459`).
+     - `audio`: uses `AcousticRecovery` (raw onset RMS rise ≥ 8 dB with tilt ≤ −12 dB, or broadband speech rise ≥ 18 dB with 150–1800 Hz rise ≥ 15 dB and tilt ≤ 0 dB, held for `HOLD_S = 0.16 s`) to decide whether to recover the onset (`speech = True`) or keep it suppressed (`speech = False`).
+     - `audiovisual`: recovers (`speech = True`) when either `AcousticRecovery` allows **or** a near visible track has fresh `mouth_motion >= MOUTH_THRESHOLD` (`~0.00459`), and otherwise suppresses both mix and `speech = False`.
    - Otherwise → `silence` (gain 1.0, `speech = False`).
 
 Gain transitions ramp smoothly (`xcheck_attack = 0.01 s`, `xcheck_release = 0.05 s`).
@@ -266,5 +266,5 @@ Presets configure multiple layers at once so they work together:
 | Preset | Tracking | Intent | Presence | Audio | Pose & Distance | FPS |
 |---|---|---|---|---|---|---|
 | **Standard** | `legacy` | `rules` | `rules` | `energy_vad` | off | adaptive 0.5–2 |
-| **Near-field priority** *(default for new browsers)* | `kalman` | `score` | `hmm` | `puresound` (`iso_dry_blend=1.0`, `iso_onset_guard=false`, `xcheck_recovery_mode="audio"`, `near_range=1.3`) | on | fixed 2 |
+| **Near-field priority** *(default for new browsers)* | `kalman` | `score` | `hmm` | `puresound` (`iso_dry_blend=1.0`, `iso_onset_guard=false`, `xcheck_recovery_mode="audio"`, `near_range=1.3`) | on (`zone_max=1.3`) | fixed 2 |
 | **Low power** | `legacy` | `rules` | `rules` | `energy_vad` | off (`max_width=480`, `embed_interval=5.0`) | adaptive 0.5–1 |

@@ -131,11 +131,14 @@ def test_reset_on_new_group_and_participant_change():
     s = AudioStream(Config(), isolator_factory=FakeIso)
     assert not s.on_vision(snap(1, [1]), 0)
     assert not s.on_vision(snap(1, [1]), 1)
-    assert s.on_vision(snap(1, [2], [{"event": "NEW_GROUP", "t": 2.0}]), 2) and s.iso.resets == 1
-    assert not s.on_vision(snap(1, [2], [{"event": "NEW_GROUP", "t": 2.0}]), 3)  # same event: once
-    assert s.on_vision(snap(2, [3]), 4) and s.iso.resets == 2  # new session
+    assert not s.on_vision(snap(1, [1, 2]), 1.2)  # member joins overlapping group: keep DPCRN state
+    assert not s.on_vision(snap(1, [1]), 1.4)  # member drops while #1 stays: keep DPCRN state
+    assert s.on_vision(snap(1, [2]), 1.6) and s.iso.resets == 1  # disjoint replacement resets
+    assert s.on_vision(snap(1, [3], [{"event": "NEW_GROUP", "t": 2.0}]), 2) and s.iso.resets == 2
+    assert not s.on_vision(snap(1, [3], [{"event": "NEW_GROUP", "t": 2.0}]), 3)  # same event: once
+    assert s.on_vision(snap(2, [4]), 4) and s.iso.resets == 3  # new session
     s.cfg.iso_reset_on_change = False
-    assert not s.on_vision(snap(3, [4]), 5)
+    assert not s.on_vision(snap(3, [5]), 5)
 
 
 def vsnap(*people, path="present"):
@@ -246,7 +249,7 @@ def test_experimental_acoustic_gate_recovers_only_supported_onsets(frequency, ex
     for k in range(3):
         # No fresh mouth evidence. The acoustic path can independently rescue a short attack.
         out, speech = stream.process(x, snap, 0.20 + k * 0.02, mouth_age=0.5)
-    assert speech == (expected_audio or mode == "audiovisual")
+    assert speech == expected_audio
     assert stream.adj.label == "false_reject"
     assert stream.meta()["recovery"]["acoustic"] is expected_audio
     assert stream.meta()["recovery"]["mouth_score"] is None
@@ -519,3 +522,32 @@ def test_audio_block_metrics_include_batch_wait_and_exclude_it_from_processing(m
     assert samples[-1][2] > samples[-2][2] + 0.005  # earlier block inside the same batch
     assert meta is not None and meta["rtf_recent"] > 0
     assert meta["proc_p95_ms"] > 0 and meta["queue_wait_ms_avg"] > meta["proc_p95_ms"]
+
+
+def test_acoustic_recovery_qualifies_broadband_speech_onset():
+    from presencekit.acoustic_recovery import qualifies
+
+    t_his = np.arange(int(0.2 * SR)) / SR
+    t_att = np.arange(int(0.06 * SR)) / SR
+    quiet = (0.005 * np.sin(2 * np.pi * 250 * t_his)).astype(np.float32)
+    # Voiced consonant+vowel onset: strong low band + high band (tilt ~ -3 dB, above legacy -12 dB cap)
+    broadband = (0.12 * np.sin(2 * np.pi * 280 * t_att) + 0.08 * np.sin(2 * np.pi * 2400 * t_att)).astype(np.float32)
+    high_only = (0.12 * np.sin(2 * np.pi * 2700 * t_att)).astype(np.float32)
+    assert qualifies(broadband, quiet, SR)
+    assert not qualifies(high_only, quiet, SR)
+
+
+def test_mouth_motion_requires_vertical_lip_divergence():
+    from presencekit.mouth_motion import MOUTH_THRESHOLD, mouth_motion
+
+    rng = np.random.default_rng(7)
+    base = rng.integers(60, 190, size=(128, 128), dtype=np.uint8)
+    corners = np.float32([[44, 88], [84, 88]])  # width = 40, midpoint = (64, 88)
+    # Rigid 2 px horizontal shift across the lower patch: not speech
+    shifted = np.roll(base, 2, axis=1)
+    assert mouth_motion((base, corners), (shifted, corners)) < MOUTH_THRESHOLD
+    # Opening mouth: upper lip lifts 2 px, lower lip drops 2 px
+    opened = base.copy()
+    opened[78:88, 46:82] = np.roll(base[78:88, 46:82], -2, axis=0)
+    opened[88:98, 46:82] = np.roll(base[88:98, 46:82], 2, axis=0)
+    assert mouth_motion((base, corners), (opened, corners)) > MOUTH_THRESHOLD

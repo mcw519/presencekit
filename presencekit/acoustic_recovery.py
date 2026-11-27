@@ -9,8 +9,19 @@ import numpy as np
 
 RISE_DB = 8
 TILT_DB = -12
+BROADBAND_RISE_DB = 18.0
+BROADBAND_LOW_RISE_DB = 15.0
+BROADBAND_TILT_DB = 0.0
 HISTORY_S = 0.2
-HOLD_S = 0.12
+HOLD_S = 0.16
+
+
+def _band_power(signal: np.ndarray, sample_rate: int, lo_hz: float, hi_hz: float) -> float:
+    win = np.hanning(len(signal))
+    denom = max(1e-12, float(np.sum(win**2)) * len(signal))
+    freq = np.fft.rfftfreq(len(signal), 1 / sample_rate)
+    power = np.abs(np.fft.rfft(signal * win)) ** 2 / denom
+    return float(power[(freq >= lo_hz) & (freq < hi_hz)].sum())
 
 
 def onset_features(attack: np.ndarray, history: np.ndarray, sample_rate: int) -> tuple[float, float]:
@@ -22,6 +33,21 @@ def onset_features(attack: np.ndarray, history: np.ndarray, sample_rate: int) ->
     low = power[(freq >= 150) & (freq < 1800)].sum()
     high = power[(freq >= 1800) & (freq < 6000)].sum()
     return level(attack) - level(history), 10 * math.log10(max(high, 1e-12) / max(low, 1e-12))
+
+
+def low_band_rise_db(attack: np.ndarray, history: np.ndarray, sample_rate: int) -> float:
+    att_low = _band_power(attack, sample_rate, 150.0, 1800.0)
+    his_low = _band_power(history, sample_rate, 150.0, 1800.0)
+    return 10 * math.log10(max(att_low, 1e-18) / max(his_low, 1e-18))
+
+
+def qualifies(attack: np.ndarray, history: np.ndarray, sample_rate: int) -> bool:
+    rise, tilt = onset_features(attack, history, sample_rate)
+    if rise >= RISE_DB and tilt <= TILT_DB:
+        return True
+    if rise >= BROADBAND_RISE_DB and tilt <= BROADBAND_TILT_DB:
+        return low_band_rise_db(attack, history, sample_rate) >= BROADBAND_LOW_RISE_DB
+    return False
 
 
 class AcousticRecovery:
@@ -40,8 +66,7 @@ class AcousticRecovery:
             if len(self.recent) == self.recent.maxlen:
                 history = np.concatenate(self.recent)
                 split = self.history_hops * self.hop
-                rise, tilt = onset_features(history[split:], history[:split], self.sample_rate)
-                if rise >= RISE_DB and tilt <= TILT_DB:
+                if qualifies(history[split:], history[:split], self.sample_rate):
                     self.onset = end_sample - self.attack_hops * self.hop
 
     def allows(self, output_start: int, output_bound: int) -> bool:
