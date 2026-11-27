@@ -89,7 +89,7 @@ focal_px = (I / 2) / tan(hfov / 2)
 distance = focal_px × W / w × distance_calib
 ```
 
-*W* is 0.15 m for a face and 0.38 m for shoulders. The shoulder estimate is used only when the person faces the camera; the available estimates are averaged and then smoothed over time (`distance_ema`). Stand at a known distance and press *I am standing at this distance* (Distance calibration) to fix `distance_calib` for your camera. Distance feeds the
+*W* is 0.15 m for a face and 0.38 m for shoulders. The shoulder estimate is used only when the person faces the camera; the available estimates are averaged and then smoothed over time (`distance_ema`). Use the **Distance calibration** card below the camera preview (pick a preset such as arm's length `0.5 m` or `1.0 m`, or enter a measured distance, and click **Calibrate now** or **3s countdown**) to fix `distance_calib` for your camera. Distance feeds the
 conversation zone (`zone_min`–`zone_max`), the "left" line `leave_distance`, the intent score and the audio
 cross-check's pickup range.
 

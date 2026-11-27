@@ -93,6 +93,30 @@
             <span class="quiet" id="roiVal" style="font-size:var(--text-small);font-family:var(--font-mono)"></span>
           </div>
         </div>
+        <div class="panel panel-pad" id="calibCard">
+          <div class="panel-title">
+            <div><h2 data-i18n="calib.label">距離校正</h2><p class="panel-help" data-i18n="calib.tip">選用參考距離並按「倒數 3 秒校正」，就能退到定點看鏡頭自動完成校正。</p></div>
+            <span id="calBadge" class="kbadge">—</span>
+          </div>
+          <div class="calib-controls">
+            <div class="segmented" id="calPresets" role="group" aria-label="常用距離" data-i18n-aria-label="calib.presets">
+              <button type="button" data-m="0.5" data-i18n="calib.p05">手臂 0.5 m</button>
+              <button type="button" data-m="1.0" class="is-active" data-i18n="calib.p10">標準 1.0 m</button>
+              <button type="button" data-m="1.5" data-i18n="calib.p15">遠一點 1.5 m</button>
+            </div>
+            <div class="calib-input">
+              <input type="number" id="calM" class="control" min="0.2" max="10" step="0.1" value="1.0" aria-label="已知距離（公尺）" data-i18n-aria-label="calib.meters_aria">
+              <span class="def">m</span>
+            </div>
+            <div class="calib-actions">
+              <button class="button button-secondary button-small" id="calB" type="button" data-i18n="calib.now">立即校正</button>
+              <button class="button button-secondary button-small" id="calDelayB" type="button" data-i18n="calib.delay">倒數 3 秒校正</button>
+              <button class="button button-ghost button-small" id="calReset" type="button" data-i18n="calib.reset">重設 ×1.0</button>
+              <button class="button button-secondary button-small" id="calEnable" type="button" data-i18n="calib.enable" hidden>啟用距離估計</button>
+            </div>
+          </div>
+          <p class="toggle-hint" id="calHint" role="status"></p>
+        </div>
         <div class="panel panel-pad" id="aCard">
           <div class="panel-title"><div><h2 data-i18n="a.title">監聽・錄影・時間軸</h2><p class="panel-help" id="aSt">—</p></div></div>
           <div class="monitor-control" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px">

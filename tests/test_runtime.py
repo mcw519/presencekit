@@ -95,6 +95,31 @@ def test_runtime_handles_the_protocol_without_a_web_framework():
     assert all(t.done() for t in rt.tasks.values())
 
 
+def test_calibrate_syncs_distance_calib_in_config_ack():
+    def ok_calibrate(tr, meters):
+        tr.cfg.update({"distance_calib": 1.4})
+        return ["calibrated: factor 1.400 (track #1)"]
+
+    async def scenario():
+        out = FakeOutbox()
+        ctx = replace(_ctx([]), calibrate=ok_calibrate)
+        rt = PresenceRuntime(ctx, out, cid="cal", pipe=StubPipe())
+        rt.start()
+        try:
+            await rt.on_text(json.dumps({"type": "calibrate", "meters": 1.0}))
+            await rt.on_text(json.dumps({"type": "config", "config": {"distance_calib": 1.0}}))
+            assert rt.aud["calibrated"] is False
+            await rt.on_text(json.dumps({"type": "config", "config": {"distance_calib": 1.4}}))
+            assert rt.aud["calibrated"] is True
+        finally:
+            await rt.close("client")
+        return out
+
+    out = asyncio.run(scenario())
+    acks = [s for s in out.of("state") if s.get("config_ack") and s.get("calibrated") is True]
+    assert acks and acks[0]["config"]["distance_calib"] == 1.4
+
+
 def test_client_message_types_cover_every_handled_kind():
     import inspect
 

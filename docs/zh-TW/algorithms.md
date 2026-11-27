@@ -225,7 +225,7 @@ stateDiagram-v2
 
 1. **人聲分離（`Isolator`）**：以 10 ms hop（512 點 STFT，30 ms 前瞻）執行 `dpcrn_curriculum_v2.onnx`，依 `iso_dry_blend`（預設 0.9，近場優先模式為 1.0）混合增強語音與對齊後的原始音訊。當發生 `NEW_GROUP`、session 切換或參與者集合完全不相交替換且 `iso_reset_on_change` 開啟時，自動重置隔離器狀態（同群組內仍有原參與者留存時不重置）。
 2. **雙路 `CleanVAD`**：分別在**增強後訊號（`clean`）**與**原始訊號（`raw`）**上追蹤自適應底噪（下降即時、上升約 3 dB/s）。能量超過 `max(min_db, floor + margin_db)` 持續 60 ms 即判定說話，並有 `clean_vad_hang`（0.3 秒）延遲關閉。
-3. **視覺時序對齊（`CrossCheckAdjuster.view`）**：以 `age = max(vis_age, max(0, capture_gap))` 判斷視覺新鮮度。若無快照、`age > xcheck_stale`（2.0 秒）或 `path == "uncertain"`，則視覺不可用（`usable=False`）。否則將 `person`、`near`（`<= near_range`）與 `all_far` 各保持 `xcheck_hold`（0.75 秒），且只要 `near` 仍在保持期間就壓制 `all_far`，保護近場講者的第一個音節。
+3. **視覺時序對齊（`CrossCheckAdjuster.view`）**：以 `age = max(vis_age, max(0, capture_gap))` 判斷視覺新鮮度。若無快照、`age > xcheck_stale`（2.0 秒）或 `path == "uncertain"`，則視覺不可用（`usable=False`）。否則將 `person`、`near`（`<= near_range`）與 `all_far` 各保持 `xcheck_hold`（0.75 秒），且只要 `near` 仍在保持期間就壓制 `all_far`，保護近場講者的第一個音節；同時追蹤 `any_far`（場上是否有任何可見人員超過 `near_range`，保持 `max(xcheck_hold, xcheck_stale)`）。
 4. **決策表（`CrossCheckAdjuster.decide`）**：
    - `usable == False` 或 `xcheck_enabled == False` → `acoustic_only`（直接輸出 PureSound 結果，`speech = clean`）。
    - `clean` 且 `not person` → `leak`（衰減至 `xcheck_floor_db` = −40 dB，`speech = False`）。
@@ -233,8 +233,8 @@ stateDiagram-v2
    - `clean` 且 `near` → `agree`（增益 1.0，`speech = True`）。
    - `not clean` 且 `raw` 且 `near` → `false_reject`，依 `xcheck_recovery_mode` 決定行為：
      - `legacy`：混合 `xcheck_recover_mix`（0.3）增強訊號＋ 0.7 延遲對齊原始訊號，`speech = True`。
-     - `audio`：由 `AcousticRecovery` 檢查原始起音頻譜（能量上升 ≥ 8 dB 且傾角 ≤ −12 dB，或強寬頻語音能量上升 ≥ 18 dB、150–1800 Hz 上升 ≥ 15 dB 且傾角 ≤ 0 dB，維持 `HOLD_S = 0.16 s`），符合才放行起音救回（`speech = True`），否則壓制（`speech = False`）。
-     - `audiovisual`：只要 `AcousticRecovery` 放行，**或**場上近距離可見軌跡具備新鮮嘴部動作（`mouth_motion >= MOUTH_THRESHOLD`）即放行救回（`speech = True`），否則同時壓制原音混回與 `speech = False`。
+     - `audio`：由 `AcousticRecovery` 檢查原始起音頻譜（能量上升 ≥ 8 dB 且傾角 ≤ −12 dB，或強寬頻語音能量上升 ≥ 18 dB、150–1800 Hz 上升 ≥ 15 dB 且傾角 ≤ 0 dB；清輔音爆發則在 140 ms 內續掃母音，維持 `HOLD_S = 0.16 s`）。當距離估計確認無遠場人選在場（`dist_ok` 且 `not any_far`）且本句已通過起音或先前已 `agree` 時，只要原音仍活躍（逾門檻後 ≤ `0.15 s`）即持續放行救回；否則未通過者一律壓制（`speech = False`）。
+     - `audiovisual`：只要上述聲學／單人近場條件放行，**或**場上近距離可見軌跡具備新鮮嘴部動作（`mouth_motion >= MOUTH_THRESHOLD`）即放行救回（`speech = True`），否則同時壓制原音混回與 `speech = False`。
    - 其餘情況 → `silence`（增益 1.0，`speech = False`）。
 
 增益切換以 `xcheck_attack`（10 ms）與 `xcheck_release`（50 ms）平滑漸變，避免爆音。

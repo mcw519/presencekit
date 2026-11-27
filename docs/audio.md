@@ -130,9 +130,13 @@ allowed, the mix returns toward the configured `vi` blend, and `speech` follows 
 - **Acoustic onset.** Once raw VAD confirms an onset, use the first 60 ms and the previous 200 ms of raw audio.
   Accept either (a) an RMS increase of at least 8 dB with the 1.8–6 kHz band at least 12 dB below the
   150 Hz–1.8 kHz band, or (b) a strong broadband speech onset (RMS rise ≥ 18 dB, 150 Hz–1.8 kHz rise ≥ 15 dB,
-  and high-to-low tilt ≤ 0 dB). Allow recovery for output blocks overlapping the first 160 ms of that onset,
-  with the usual mix smoothing. The check uses raw samples already received while PureSound is processing
-  earlier audio.
+  and high-to-low tilt ≤ 0 dB). If the initial burst already rose ≥ 8 dB (e.g. a voiceless consonant), keep
+  scanning for up to 140 ms against the pre-onset baseline so vowel arrival still qualifies. Allow recovery for
+  output blocks overlapping the first 160 ms of that onset, with the usual mix smoothing. When distance
+  measurement confirms only near person(s) in view (`any_far = False`) and the current utterance qualified at
+  onset or was already confirmed by `agree`, recovery continues while raw speech remains active so PureSound
+  dropouts mid-sentence or at ~0.7 m do not silence a solo user. The check uses raw samples already received
+  while PureSound is processing earlier audio.
 
 Without either cue, the mix returns toward the configured `vi` blend. The optional PureSound SDK onset guard and
 `iso_dry_blend` also affect `vi`. Use `iso_dry_blend=1` with the SDK onset guard off when comparing with the

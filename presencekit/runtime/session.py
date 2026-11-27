@@ -529,8 +529,11 @@ class PresenceRuntime:
             async with self.lock:
                 tr = st["tr"]
                 tr.speech_source = "clean"
-                if st["running"] and self.observation_clock.paused_at is None and (speech != tr.speaking):
-                    self.send(tr.set_speech(speech), droppable=False)
+                if st["running"] and self.observation_clock.paused_at is None:
+                    if speech and tr.speaking:
+                        tr.last_speech = tr.clock()
+                    elif speech != tr.speaking:
+                        self.send(tr.set_speech(speech), droppable=False)
             if now - aud["meta_t"] >= 0.1:
                 aud["meta_t"] = now
                 meta = a.meta()
@@ -764,6 +767,8 @@ class PresenceRuntime:
                 warns = tr.cfg.update(new)
                 after = asdict(tr.cfg)
                 changed = {k: after[k] for k in after if after[k] != before.get(k)}
+                if "distance_calib" in changed:
+                    aud["calibrated"] = abs(tr.cfg.distance_calib - 1.0) > 1e-4
                 if not tr.cfg.reid_enabled or not tr.cfg.reid_consent:
                     rd.wipe("disabled")
                 if changed:
@@ -773,9 +778,14 @@ class PresenceRuntime:
                 self.send(tr.tick() if st["running"] else tr.snapshot(), {"config_ack": True, "warnings": warns}, False)
             elif kind == "calibrate":
                 warns = self.ctx.calibrate(tr, msg.get("meters"))
-                aud["calibrated"] = aud["calibrated"] or any(w.startswith("calibrated") for w in warns)
+                ok = any(w.startswith("calibrated") for w in warns)
+                aud["calibrated"] = aud["calibrated"] or ok
                 diag.event("calibrate", conn=cid, result="; ".join(warns)[:200])
-                self.send(tr.tick() if st["running"] else tr.snapshot(), {"config_ack": True, "warnings": warns}, False)
+                self.send(
+                    tr.tick() if st["running"] else tr.snapshot(),
+                    {"config_ack": True, "calibrated": ok, "warnings": warns},
+                    False,
+                )
             elif kind == "client":  # browser-side report: visibility / auto-pause / media ended / reconnect
                 what = str(msg.get("what") or "")[:32]
                 info = {

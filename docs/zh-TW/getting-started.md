@@ -50,7 +50,7 @@ uv run presencekit --host 0.0.0.0 --port 8000
 | 功能 | 開啟方式 | 說明 |
 |---|---|---|
 | 身體姿勢（MoveNet） | 設定 → 詳細設定 → 姿勢，或選擇「近場優先」；要用 ONNX Runtime 取代 LiteRT，先執行一次 `scripts/export_movenet_onnx.py` | [偵測](detection.md)、[SDK](sdk.md#模型) |
-| 距離估計 | 設定 → 詳細設定 → 距離，再做「距離校正」 | [偵測](detection.md) |
+| 距離估計 | 「近場優先」預設已開啟（或設定 → 詳細設定 → 距離），接著用主畫面鏡頭下方的「距離校正」面板校正 | [偵測](detection.md) |
 | PureSound 人聲分離 | `uv sync --extra puresound` 和 `uv run python scripts/fetch_puresound_model.py --clone` | [音訊](audio.md) |
 | 雲端語音辨識 | 設定 → 詳細設定 → 語音辨識，加上 API key | [語音辨識](asr.md) |
 | 跨 session 使用者判斷 | 設定 → 詳細設定 → Re-ID，明確同意，加上 API key | [Re-ID](reid.md) |

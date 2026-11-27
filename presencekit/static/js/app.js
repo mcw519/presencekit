@@ -29,7 +29,8 @@ function connect(){invalidateFrames();clearReidDisplay(null);const query=new URL
   if(s.type==='state'){onReidSession(s.session);updateRecommendedFps(s.recommended_fps);$('cam').textContent=s.sensor_status==='interrupted'?t('cam.interrupted'):running?t('cam.on'):t('cam.off')}
   if(s.config_ack&&s.config){let ch=false;for(const k in s.config){if(!(k in DEF))continue;const v=BOXES.includes(k)?s.config[k].map(x=>+(+x).toFixed(4)):s.config[k];
     if(JSON.stringify(v)!==JSON.stringify(cfg[k])){cfg[k]=v;ch=true}}if(ch){save();syncUI();restartFrames()}
-   if(s.warnings&&s.warnings.length)toast(t('toast.server_adjusted',{w:s.warnings.join('; ')}))}
+   if(s.calibrated!=null){if(s.calibrated){calDone=true;toast(t('toast.calibrated',{f:cfg.distance_calib.toFixed(2)}))}else toast(t('toast.calib_none'))}
+   else if(s.warnings&&s.warnings.length)toast(t('toast.server_adjusted',{w:s.warnings.join('; ')}))}
   if(!('detections' in s)&&last)s.detections=last.detections;last=s;measureRender(()=>render(s))}}
 // ---------- render ----------
 const STATES=['ACTIVE','IDLE','MAYBE_AWAY','AWAY','ENDED'];
@@ -53,6 +54,7 @@ function drawP(s){const card=$('pCard');if(s.presence_model!=='hmm'){card.style.
 function render(s){
  drawP(s);
  renderFsm(s);
+ if(typeof updateCalibUI==='function')updateCalibUI(s);
  const tr=[...s.log].reverse().find(e=>e.event==='transition');$('reason').textContent=tr?`${tr.frm} → ${tr.to}：${tr.reason}`:'—';
  $('pipe').textContent=s.pipeline?t('pipe.model',{m:s.pipeline}):'';
  $('spk').textContent=s.speaking?t('m.yes'):t('m.no');$('sil').textContent=s.silence.toFixed(1)+'s';
@@ -216,6 +218,7 @@ async function start(){
  }catch(e){if(stream!==capture)return false;stop();throw e}
 }
 function stop(auto){
+ if(typeof cancelCalibTimer==='function')cancelCalibTimer();
  invalidateFrames();
  if(rec)recStop();
  [frameTimer,vadTimer,pingTimer].forEach(clearInterval);frameTimer=null;frameRate=0;recFps=0;
@@ -260,7 +263,45 @@ function renderStats(s){const y=s.system,c=s.conn,L=c.latency_ms,i=s.info;
 
  writeHTML('mKv',Object.entries(kv).map(([k,v])=>`<span>${k}</span><span>${v}</span>`).join(''));
 }
-function addCalib(){const det=$('mod_distance');if(!det)return;
- det.insertAdjacentHTML('beforeend',`<div class="row"><div class="top"><label>${t('calib.label')}</label><input type="number" id="calM" class="control" min="0.2" max="10" step="0.1" value="1.0"><span class="def">m</span><button class="button button-secondary button-small" id="calB" type="button">${t('calib.btn')}</button></div>
-  <div class="tip">${t('calib.tip')}</div></div>`);
- $('calB').onclick=()=>{if(!running){toast(t('toast.press_start'));return}wsSend({type:'calibrate',meters:+$('calM').value})}}
+let calTimer=null,calLeft=0,calDone=false;
+function cancelCalibTimer(){if(calTimer){clearInterval(calTimer);calTimer=null}calLeft=0;
+ const db=$('calDelayB'),hint=$('calHint');if(db)db.textContent=t('calib.delay');if(hint){hint.classList.remove('is-counting')}}
+function syncCalibPresets(){const m=+$('calM').value;
+ $('calPresets').querySelectorAll('button[data-m]').forEach(b=>b.classList.toggle('is-active',Number.isFinite(m)&&Math.abs(m-+b.dataset.m)<0.01))}
+function updateCalibUI(s=last){const badge=$('calBadge'),hint=$('calHint'),en=$('calEnable'),calB=$('calB'),delB=$('calDelayB'),rstB=$('calReset');
+ if(!badge)return;
+ const factor=+cfg.distance_calib||1,distOn=!!cfg.distance_enabled;
+ const isCal=distOn&&(calDone||Math.abs(factor-1)>=0.005);
+ en.hidden=distOn;calB.disabled=!distOn||!running;delB.disabled=!distOn||!running;rstB.disabled=!distOn||Math.abs(factor-1)<0.005;
+ const near=(s?.tracks||[]).filter(x=>x.visible&&x.distance!=null).sort((a,b)=>a.distance-b.distance)[0];
+ badge.classList.toggle('is-set',isCal);
+ if(!distOn){badge.textContent=t('calib.badge_off')}
+ else if(running&&near){badge.textContent=t('calib.badge_live',{id:near.id,d:near.distance.toFixed(2),f:factor.toFixed(2)})}
+ else if(running){badge.textContent=t('calib.badge_wait',{f:factor.toFixed(2)})}
+ else{badge.textContent=t('calib.badge_idle',{f:factor.toFixed(2)})}
+ if(calTimer){hint.classList.add('is-counting');hint.textContent=t('calib.counting',{m:String(+(+$('calM').value||1).toFixed(2)),s:calLeft});return}
+ hint.classList.remove('is-counting');
+ if(!distOn){hint.textContent=t('calib.hint_off')}
+ else if(!running){hint.textContent=t('calib.hint_start')}
+ else if(!near){hint.textContent=t('calib.hint_no_person')}
+ else{hint.textContent=t('calib.hint_ready',{d:near.distance.toFixed(2)})}}
+function sendCalibrate(){const raw=+$('calM').value;const m=Math.round(Math.min(10,Math.max(0.2,Number.isFinite(raw)&&raw>0?raw:1))*100)/100;$('calM').value=String(m);syncCalibPresets();
+ if(!running){toast(t('toast.press_start'));return}
+ if(!cfg.distance_enabled){setCfg({distance_enabled:true});return}
+ wsSend({type:'calibrate',meters:m})}
+function addCalib(){const det=$('mod_distance');
+ if(det){det.insertAdjacentHTML('beforeend',`<div class="row"><div class="top"><label>${t('calib.label')}</label><button class="button button-secondary button-small" id="calJump" type="button">${t('calib.jump')}</button></div><div class="tip">${t('calib.settings_tip')}</div></div>`);
+  $('calJump').onclick=()=>{drawer(false);$('calibCard').scrollIntoView({behavior:'smooth',block:'center'})}}
+ $('calPresets').addEventListener('click',e=>{const b=e.target.closest('button[data-m]');if(!b)return;
+  $('calM').value=(+b.dataset.m).toFixed(1);syncCalibPresets();if(calTimer)updateCalibUI()});
+ $('calM').addEventListener('input',()=>{syncCalibPresets();if(calTimer)updateCalibUI()});
+ $('calB').onclick=()=>{cancelCalibTimer();sendCalibrate()};
+ $('calDelayB').onclick=()=>{if(calTimer){cancelCalibTimer();updateCalibUI();return}
+  if(!running){toast(t('toast.press_start'));return}
+  calLeft=3;$('calDelayB').textContent=t('calib.cancel',{s:calLeft});
+  calTimer=setInterval(()=>{calLeft--;if(calLeft<=0){cancelCalibTimer();sendCalibrate();updateCalibUI()}
+   else{$('calDelayB').textContent=t('calib.cancel',{s:calLeft});updateCalibUI()}},1000);
+  updateCalibUI()};
+ $('calReset').onclick=()=>{cancelCalibTimer();calDone=false;setCfg({distance_calib:1});toast(t('toast.calib_reset'))};
+ $('calEnable').onclick=()=>{setCfg({distance_enabled:true});toast(t('toast.calib_enabled'))};
+ syncCalibPresets();updateCalibUI()}

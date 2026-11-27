@@ -183,6 +183,8 @@ class VisionView:
     target: int | None = None
     distance: float | None = None
     why: str = ""
+    any_far: bool = False  # distance usable and at least one visible person beyond near_range (held)
+    dist_ok: bool = False  # True when distance_enabled and calibration requirement is satisfied
 
 
 class CrossCheckAdjuster:
@@ -206,6 +208,7 @@ class CrossCheckAdjuster:
         self._person_t = -1e9
         self._near_t = -1e9
         self._far_t = -1e9
+        self._any_far_t = -1e9
 
     def view(self, snap: dict | None, vis_age: float, cfg, now: float, calibrated: bool) -> VisionView:
         if snap is None or vis_age > cfg.xcheck_stale or snap.get("path") == "uncertain":
@@ -215,6 +218,7 @@ class CrossCheckAdjuster:
         vis = [t for t in snap.get("tracks", []) if t["visible"]]
         withd = [t for t in vis if t.get("distance") is not None]
         near = [t for t in vis if not dist_ok or t.get("distance") is None or t["distance"] <= cfg.near_range]
+        has_far = dist_ok and any(t.get("distance") is not None and t["distance"] > cfg.near_range for t in vis)
         all_far = dist_ok and bool(vis) and len(withd) == len(vis) and not near
         if vis:
             self._person_t = now
@@ -222,11 +226,15 @@ class CrossCheckAdjuster:
             self._near_t = now
         if all_far:
             self._far_t = now
+        if has_far:
+            self._any_far_t = now
         h = cfg.xcheck_hold
         person = now - self._person_t <= h
         is_near = now - self._near_t <= h
         # far only counts when nobody was near within the hold (asymmetric: protect onsets of a near talker)
         far = (now - self._far_t <= h) and not is_near
+        far_hold = 0.0 if h <= 0 else max(h, cfg.xcheck_stale)
+        any_far = dist_ok and (now - self._any_far_t <= far_hold)
         pick = min(near or vis, key=lambda t: t.get("distance") or 0.0) if vis else None
         return VisionView(
             True,
@@ -236,6 +244,8 @@ class CrossCheckAdjuster:
             pick["id"] if pick else None,
             pick.get("distance") if pick else None,
             "distance" if dist_ok else "presence only",
+            any_far=any_far,
+            dist_ok=dist_ok,
         )
 
     def decide(self, v: VisionView, clean: bool, raw: bool, cfg, base_mix: float) -> Adjust:
@@ -280,6 +290,8 @@ class AudioStream:
         self._iso_origin = 0
         self._onset_recovery: AcousticRecovery | None = None
         self._recovery_meta: dict | None = None
+        self._raw_active_sample = -SR
+        self._ut_agreed = False
         self.compute_s = 0.0
         self.audio_s = 0.0
         self.raw_db = -100.0
@@ -314,6 +326,7 @@ class AudioStream:
         self.iso.reset()
         self._iso_origin = self._input_samples
         self._onset_recovery = None
+        self._ut_agreed = False
 
     @staticmethod
     def _db(x) -> float:
@@ -355,12 +368,19 @@ class AudioStream:
             was_speech = self.raw_vad.speech
             speech = self.raw_vad.step(hop)
             self._raw_pending = self._raw_pending[HOP:]
+            hop_end = self._input_samples - self._raw_pending.size
+            if self.raw_vad.level_db > max(self.raw_vad.min_db, self.raw_vad.floor_db + self.raw_vad.margin_db):
+                self._raw_active_sample = hop_end
+            if not speech:
+                self._ut_agreed = False
             if self._onset_recovery is not None:
-                self._onset_recovery.step(hop, self._input_samples - self._raw_pending.size, speech and not was_speech)
+                self._onset_recovery.step(hop, hop_end, speech and not was_speech, speech=speech)
         view = self.adjuster.view(snap, vis_age, c, now, self.calibrated)
         adj = self.adjuster.decide(view, self.vad.speech, self.raw_vad.speech, c, self.iso.base_mix)
+        if adj.label == "agree":
+            self._ut_agreed = True
         if self._onset_recovery is not None:
-            self._gate_recovery(adj, snap, mouth_age, x.size)
+            self._gate_recovery(adj, view, snap, mouth_age, x.size)
         if adj.label != self.adj.label:
             self.counts[adj.label] += 1
         self.adj = adj
@@ -384,7 +404,9 @@ class AudioStream:
         self._classified_samples[adj.label] += x.size
         return (np.clip(y, -1, 1) * 32767).astype("<i2").tobytes(), adj.speech
 
-    def _gate_recovery(self, adj: Adjust, snap: dict | None, mouth_age: float, chunk_samples: int) -> None:
+    def _gate_recovery(
+        self, adj: Adjust, view: VisionView, snap: dict | None, mouth_age: float, chunk_samples: int
+    ) -> None:
         score = None
         if self.cfg.mouth_recovery_enabled and snap is not None and 0 <= mouth_age <= FRESH_S:
             score = next(
@@ -397,7 +419,18 @@ class AudioStream:
             )
         mouth = score is not None and score > MOUTH_THRESHOLD
         output_start = self._iso_origin + self.iso.next_output_sample
-        acoustic = self._onset_recovery.allows(output_start, output_start + chunk_samples)
+        onset_ok = self._onset_recovery.allows(output_start, output_start + chunk_samples)
+        # When distance confirms only near person(s) in view (no visible far interferer), keep a
+        # qualified/agreed utterance recovered if PureSound drops mid-speech or misses a softer sentence.
+        solo_near = (
+            view.usable
+            and view.dist_ok
+            and view.near
+            and not view.any_far
+            and (self._onset_recovery.utterance_qualified or self._ut_agreed)
+            and (self._input_samples - self._raw_active_sample) <= round(0.15 * SR)
+        )
+        acoustic = onset_ok or solo_near
         eligible = adj.label == "false_reject"
         if eligible and not (mouth or acoustic):
             adj.mix = self.iso.base_mix

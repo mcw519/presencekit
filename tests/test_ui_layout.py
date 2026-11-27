@@ -34,6 +34,14 @@ def test_roi_picker_covers_both_rois():
     assert 'data-roi="face_roi"' in pick and 'data-roi="pose_roi"' in pick
 
 
+def test_distance_calibration_card_is_on_main_workbench():
+    assert HTML.index('id="roiCard"') < HTML.index('id="calibCard"') < HTML.index('id="aCard"')
+    presets = re.search(r'id="calPresets".*?</div>', HTML, re.S).group(0)
+    assert all(f'data-m="{m}"' in presets for m in ("0.5", "1.0", "1.5"))
+    for eid in ('id="calM"', 'id="calB"', 'id="calDelayB"', 'id="calReset"', 'id="calEnable"', 'id="calBadge"'):
+        assert eid in HTML
+
+
 @pytest.mark.skipif(not shutil.which("node"), reason="node not installed")
 def test_roi_math_mirror_roundtrip():
     body = re.search(r"const roiMath=(.*?)\};\n", HTML, re.S).group(1) + "}"

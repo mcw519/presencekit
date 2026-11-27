@@ -551,3 +551,56 @@ def test_mouth_motion_requires_vertical_lip_divergence():
     opened[78:88, 46:82] = np.roll(base[78:88, 46:82], -2, axis=0)
     opened[88:98, 46:82] = np.roll(base[88:98, 46:82], 2, axis=0)
     assert mouth_motion((base, corners), (opened, corners)) > MOUTH_THRESHOLD
+
+
+def test_acoustic_recovery_scans_consonant_to_vowel_and_solo_near_utterance():
+    class SilentVI(FakeIso):
+        next_output_sample = 0
+
+        def process(self, x, mix):
+            self.next_output_sample += x.size
+            self.last_vi = np.zeros_like(x)
+            return (1 - mix / self.base_mix) * x
+
+    def tone(freq):
+        return (4000 * np.sin(np.arange(320) * 2 * np.pi * freq / SR)).astype("<i2").tobytes()
+
+    cfg = Config(audio_pipeline="puresound", xcheck_recovery_mode="audio", iso_dry_blend=1, distance_enabled=True)
+    stream = AudioStream(cfg, isolator_factory=SilentVI)
+    solo = vsnap(0.7)
+    mixed = vsnap(0.7, 2.0)
+
+    # 1. Solo near speaker: consonant burst (2700 Hz) followed 60 ms later by vowel (240 Hz)
+    # qualifies via vowel scan and stays recovered through a continuous utterance.
+    for k in range(10):
+        stream.process(bytes(640), solo, k * 0.02)
+    for k in range(3):
+        stream.process(tone(2700), solo, 0.20 + k * 0.02)
+    for k in range(3):
+        _, speech = stream.process(tone(240), solo, 0.26 + k * 0.02)
+    assert speech and stream.meta()["recovery"]["allowed"]
+    # Past HOLD_S (0.16 s), solo near keeps the qualified utterance recovered
+    for k in range(15):
+        out, speech = stream.process(tone(240), solo, 0.32 + k * 0.02)
+    assert speech and np.frombuffer(out, "<i2").any()
+
+    # 2. Once a far person appears in view (any_far=True), sustained recovery is gated off past HOLD_S.
+    _, speech = stream.process(tone(240), mixed, 0.62)
+    assert not speech and not stream.meta()["recovery"]["allowed"]
+
+
+def test_tracker_keeps_last_speech_current_until_speech_ends():
+    t = [0.0]
+    tr = PresenceTracker(Config(idle_after=3.0), clock=lambda: t[0])
+    tr.update([det()], now=0.0)
+    tr.set_speech(True, now=1.0)
+    # Speaking continues for 5 s while frames arrive without speaking flag updates
+    for sec in range(2, 6):
+        t[0] = float(sec)
+        tr.update([det()], now=t[0])
+    # Speech stops at t=6.0: silence must be 1.0 s (ACTIVE), not 5.0 s (immediate IDLE)
+    t[0] = 6.0
+    snap = tr.set_speech(False, now=6.0)
+    assert snap["state"] == "ACTIVE" and snap["silence"] == 1.0
+    t[0] = 8.1
+    assert tr.tick(now=8.1)["state"] == "IDLE"
