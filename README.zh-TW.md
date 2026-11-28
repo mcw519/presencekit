@@ -74,6 +74,15 @@ step = engine.process_frame(bgr_frame, speaking=vad_flag)
 print(step.snapshot["state"], [e.reason for e in step.events])
 ```
 
+### 純瀏覽器試用版
+
+實驗版監看頁在桌面 Chromium 裡用 WebAssembly 執行 PureSound 與 YuNet。相機與麥克風資料留在裝置上，
+只需靜態檔案伺服器即可運作。試用版固定以 2 fps 跑「**近場優先**」，支援原音／輸出對照、即時監聽、WAV 下載，
+以及英文和繁體中文切換。
+
+本機指南包含靜態檔建置、啟動方式及與 Python demo 的輸出比對。試用版用臉部估距與簡化追蹤，
+完整的 session 狀態機可在 Python demo 使用。 [建置與驗證純瀏覽器試用版](experiments/browser_poc/README.md)
+
 ## 運作原理
 
 ```mermaid
@@ -117,6 +126,7 @@ flowchart LR
 ```
 presencekit/         核心邏輯、ONNX Runtime 推論層、SDK 介面（sdk.py）、FastAPI + WebSocket 伺服器
 presencekit/static/  網頁介面（HTML、JS、字串表、vendored PureSound CSS）
+experiments/browser_poc/  純瀏覽器監看頁與錄音重播驗證
 scripts/               基準測試、評估、模型匯出、圖片與文件產生器
 tests/                 單元、情境、WebSocket、隱私、介面和 i18n 測試
 docs/                  文件（英文），docs/zh-TW/（繁體中文）

@@ -4,9 +4,11 @@
 
 ## 本機啟動
 
-準備 PresenceKit 的模型目錄，包含已驗證的 `dpcrn_curriculum_v2.onnx`、對應的 JSON manifest，以及 `yunet_s_dynamic.onnx`。這個 PoC 使用同層 PureSound checkout 的 Web SDK。建置前請讓該 checkout 的 Web SDK 原始碼與依賴對應 PresenceKit 鎖定的分支版本 `aba2962876c8ec8abec7971378d670677e0ec859`。
+先用 `uv sync` 建立 PresenceKit 的 Python 開發環境，並把 PureSound checkout 放在同層的 `../PureSound`。Web SDK 原始碼與依賴對應 PresenceKit 鎖定的 commit `aba2962876c8ec8abec7971378d670677e0ec859`。以下命令準備 PureSound ONNX、manifest 與 YuNet，並啟動靜態檔案伺服器。
 
 ```sh
+.venv/bin/python scripts/fetch_puresound_model.py --from ../PureSound --dest models
+.venv/bin/python -c "from presencekit.inference.models import ModelStore; assert ModelStore('models').ensure('yunet')"
 (cd ../PureSound/sdk/web && npm ci && npm run build)
 .venv/bin/python experiments/browser_poc/prepare.py
 python3 -m http.server 8765 --bind 127.0.0.1 --directory artifacts/browser-poc/site
@@ -18,7 +20,7 @@ python3 -m http.server 8765 --bind 127.0.0.1 --directory artifacts/browser-poc/s
 
 ## 對照 Python #9
 
-以 repo 根目錄為工作目錄，使用含 PureSound extra 的 Python 環境與 Playwright Chromium。若缺少瀏覽器，從 PureSound 的 `sdk/web` 執行 `npx playwright install chromium`。Python 基準使用 #9 合併的 `7ee50a2` 版本。
+以 repo 根目錄為工作目錄，使用 Python 3.12 以上並執行 `uv sync --extra puresound`。若缺少 Playwright Chromium，從 PureSound 的 `sdk/web` 執行 `npx playwright install chromium`。Python 基準使用 #9 合併的 `7ee50a2` 版本。
 
 ```sh
 .venv/bin/python experiments/browser_poc/prepare.py --reference \
