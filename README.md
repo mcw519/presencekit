@@ -81,15 +81,11 @@ step = engine.process_frame(bgr_frame, speaking=vad_flag)
 print(step.snapshot["state"], [e.reason for e in step.events])
 ```
 
-### Browser-only preview
+### GitHub Pages preview
 
-The experimental monitor runs PureSound and YuNet in desktop Chromium using WebAssembly. It keeps camera and
-microphone input on the device and works with a static file server. The preview runs **Near-field priority** at
-2 fps and includes aligned raw and output plots, live listening, WAV export, and English and Traditional Chinese.
-
-The local guide covers building the static files, opening the monitor, and comparing the output with the Python
-demo. The preview uses face-based distance and simplified tracking. The full session state machine is available
-in the Python demo. [Build and verify the browser preview](experiments/browser_poc/README.md)
+Run **Near-field priority** at 2 fps in desktop Chromium with on-device PureSound and YuNet. The monitor shows
+raw and processed audio and supports live listening, WAV export, and English and Traditional Chinese.
+[Open the preview after publication](https://mcw519.github.io/presencekit/) · [Run locally or publish](experiments/browser_poc/README.md)
 
 ## How it works
 
@@ -135,7 +131,6 @@ The full index is in [docs/](docs/README.md), organized into **two entry points*
 ```
 presencekit/     core logic, ONNX Runtime inference layer, SDK facade (sdk.py), FastAPI + WebSocket server
 presencekit/static/  web UI (HTML, JS, string tables, vendored PureSound CSS)
-experiments/browser_poc/  browser-only monitor and replay verification
 scripts/           benchmark, evaluation, model export, figure and doc generators
 tests/             unit, scenario, WebSocket, privacy, UI and i18n tests
 docs/              documentation (English) and docs/zh-TW/ (Traditional Chinese)

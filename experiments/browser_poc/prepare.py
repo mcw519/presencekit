@@ -34,6 +34,8 @@ def stage(upstream):
     assets = ROOT / "presencekit/static"
     shutil.copytree(assets / "vendor/puresound", STATIC / "design", dirs_exist_ok=True)
     shutil.copyfile(assets / "app.css", STATIC / "design/presence.css")
+    for name in ("LICENSE", "NOTICE"):
+        shutil.copyfile(ROOT / name, STATIC / name)
     sdk = upstream / "sdk/web"
     subprocess.run(
         [
@@ -67,6 +69,7 @@ def stage(upstream):
     ]:
         shutil.copyfile(sdk / src, STATIC / "vendor" / dst)
     (STATIC / "models").mkdir(exist_ok=True)
+    shutil.copyfile(HERE / "licenses/YUNET-LICENSE", STATIC / "models/YUNET-LICENSE")
     for key in ("puresound", "puresound-manifest", "yunet"):
         spec = CATALOG[key]
         source = ROOT / "models" / spec.filename
