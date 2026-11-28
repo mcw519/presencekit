@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title data-i18n="title">PresenceKit · 即時監看</title>
+  <link rel="stylesheet" href="./design/tokens.css">
+  <link rel="stylesheet" href="./design/base.css">
+  <link rel="stylesheet" href="./design/components.css">
+  <link rel="stylesheet" href="./design/shell.css">
+  <link rel="stylesheet" href="./design/screens-shared.css">
+  <link rel="stylesheet" href="./design/presence.css">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="app-shell poc">
+  <aside class="sidebar" aria-label="導覽" data-i18n-aria-label="navigation">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">◉</span><span class="brand-name">PresenceKit</span></div>
+    <nav class="nav" aria-label="頁內導覽" data-i18n-aria-label="pageNavigation">
+      <div class="nav-group">
+        <p class="nav-group-title" data-i18n="live">即時</p>
+        <a href="#monitor" class="nav-link is-active"><span class="nav-icon" aria-hidden="true">▷</span><span data-i18n="monitor">監看</span></a>
+        <a href="#audio-review" class="nav-link"><span class="nav-icon" aria-hidden="true">≋</span><span data-i18n="playback">錄音回放</span></a>
+      </div>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="sidebar-footer">
+      <div class="runtime"><span class="status-dot" id="runtime-dot" aria-hidden="true"></span>
+        <span class="runtime-text"><span class="runtime-value" data-i18n="localRuntime">本機運算</span><span class="runtime-meta">PureSound · YuNet</span></span>
+      </div>
+      <div class="poc-preferences">
+        <div class="nav-switch" id="language" role="group" aria-label="語言" data-i18n-aria-label="language">
+          <button type="button" data-language="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
+          <button type="button" data-language="zh-TW" lang="zh-Hant-TW" aria-label="繁體中文" aria-pressed="true">中文</button>
+        </div>
+        <div class="nav-switch" id="theme" role="group" aria-label="主題" data-i18n-aria-label="theme">
+          <button type="button" data-theme-choice="auto" aria-pressed="true" data-i18n="auto">自動</button>
+          <button type="button" data-theme-choice="light" aria-pressed="false" data-i18n="light">淺色</button>
+          <button type="button" data-theme-choice="dark" aria-pressed="false" data-i18n="dark">深色</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <section class="screen is-visible">
+      <header class="page-header">
+        <div class="page-heading">
+          <h1 class="page-title" data-i18n="liveMonitor">即時監看</h1>
+          <p class="page-desc" data-i18n="nearPriority">近場優先 · 影像固定 2 fps</p>
+        </div>
+        <div class="page-actions">
+          <span class="chip" id="cam" data-i18n="captureOff">鏡頭／麥克風關閉</span>
+          <button class="button button-primary" id="start" type="button" data-i18n="start">開始</button>
+          <button class="button button-secondary" id="stop" type="button" hidden data-i18n="stop">停止</button>
+        </div>
+      </header>
+
+      <div class="presence-workbench" id="monitor">
+        <div class="presence-stack monitor-panels">
+          <div class="stage-head">
+            <div><h2 data-i18n="videoAudio">影像與音訊</h2><p class="panel-help" data-i18n="alignedTracks">原音與輸出共用時間軸和刻度</p></div>
+            <div class="segmented" id="track-controls" role="group" aria-label="音軌顯示" data-i18n-aria-label="trackDisplay">
+              <button type="button" data-view-choice="wave" aria-pressed="false" data-i18n="waveform">波形</button>
+              <button type="button" data-view-choice="spec" aria-pressed="false" data-i18n="spectrogram">頻譜</button>
+              <button type="button" data-view-choice="both" aria-pressed="true" data-i18n="both">兩者</button>
+            </div>
+          </div>
+
+          <section class="panel monitor-stage" id="stage" data-view="both" aria-label="影像與音訊" data-i18n-aria-label="videoAudio">
+            <div id="view">
+              <video id="camera" autoplay muted playsinline></video>
+              <canvas id="overlay" aria-hidden="true"></canvas>
+              <div id="placeholder">
+                <strong id="camera-message" data-i18n="startPrompt">按「開始」開啟鏡頭與麥克風</strong>
+                <small data-i18n="permissionPrompt">需要瀏覽器授權</small>
+              </div>
+              <div class="camera-legend" id="camera-legend" hidden><span class="near" data-i18n="near">近場</span><span class="far" data-i18n="far">遠場</span></div>
+            </div>
+            <div class="sig-stack" id="sigStack" data-view="both">
+              <div class="sig-lane raw">
+                <div class="lane-label"><i></i><span data-i18n="raw">原音</span><small>raw</small><b class="lane-db" id="db-raw">—</b></div>
+                <div class="lane-plots"><canvas id="wave-raw" class="scope trk-wave" aria-label="原音波形" data-i18n-aria-label="rawWaveform"></canvas><canvas id="spec-raw" class="scope trk-spec" aria-label="原音頻譜" data-i18n-aria-label="rawSpectrogram"></canvas></div>
+              </div>
+              <div class="sig-lane clean">
+                <div class="lane-label"><i></i><span data-i18n="output">輸出</span><small>out</small><b class="lane-db" id="db-out">—</b></div>
+                <div class="lane-plots"><canvas id="wave-out" class="scope trk-wave" aria-label="輸出波形" data-i18n-aria-label="outputWaveform"></canvas><canvas id="spec-out" class="scope trk-spec" aria-label="輸出頻譜" data-i18n-aria-label="outputSpectrogram"></canvas></div>
+              </div>
+              <div class="scope-time" aria-hidden="true"><span data-i18n="fiveSecondsAgo">−5 秒</span><span data-i18n="now">現在</span></div>
+            </div>
+          </section>
+
+          <section class="panel panel-pad" id="audio-review">
+            <div class="panel-title">
+              <div><h2 data-i18n="playback">錄音回放</h2><p class="panel-help" id="recording-note" data-i18n="playbackHint">停止後可試聽與下載本次輸出</p></div>
+              <a class="button button-secondary button-small" id="download" hidden data-i18n="download">下載 WAV</a>
+            </div>
+            <audio id="playback" controls hidden></audio>
+          </section>
+        </div>
+
+        <div class="presence-stack side-panels">
+          <section class="panel panel-pad">
+            <div class="panel-title">
+              <div><h2 data-i18n="liveDecision">即時判斷</h2><p class="panel-help" id="status" role="status" data-i18n="ready">等待啟動</p></div>
+              <span class="chip poc-decision" id="decision" data-tone="neutral" data-i18n="standby">待命</span>
+            </div>
+            <div class="metric-row poc-metrics">
+              <div class="metric"><span data-i18n="speechDetection">說話判定</span><strong id="speech">—</strong></div>
+              <div class="metric"><span data-i18n="rawMinusOutput">原音 − 輸出</span><strong id="reduction" title="最近 240 毫秒的 RMS 音量差" data-i18n-title="rmsDifference">—</strong></div>
+              <div class="metric"><span data-i18n="near">近場</span><strong id="near-count">—</strong></div>
+              <div class="metric"><span data-i18n="far">遠場</span><strong id="far-count">—</strong></div>
+            </div>
+            <ul id="people" class="people" aria-label="偵測到的人臉" data-i18n-aria-label="faces"></ul>
+          </section>
+
+          <section class="panel panel-pad">
+            <div class="panel-title"><div><h2 data-i18n="liveListening">即時監聽</h2><p class="panel-help" data-i18n="headphones">請戴耳機，避免喇叭聲被麥克風收進去。</p></div></div>
+            <div class="segmented" id="monitor-controls" role="group" aria-label="監聽音軌" data-i18n-aria-label="listeningTrack">
+              <button type="button" data-monitor="off" aria-pressed="true" disabled data-i18n="off">關閉</button>
+              <button type="button" data-monitor="raw" aria-pressed="false" disabled data-i18n="raw">原音</button>
+              <button type="button" data-monitor="out" aria-pressed="false" disabled data-i18n="output">輸出</button>
+            </div>
+          </section>
+
+          <section class="panel panel-pad">
+            <div class="panel-title"><div><h2 data-i18n="decisionTimeline">判斷時間軸</h2><p class="panel-help" data-i18n="lastTenSeconds">最近 10 秒</p></div></div>
+            <div class="decision-timeline">
+              <span data-i18n="speech">算說話</span><span data-i18n="processing">處理</span>
+              <canvas class="scope" id="timeline" aria-label="最近 10 秒的說話、壓低與救回判斷" data-i18n-aria-label="timelineDescription"></canvas>
+            </div>
+            <div class="poc-legend"><span data-key="speech" data-i18n="speaking">說話</span><span data-key="cut" data-i18n="attenuated">壓低</span><span data-key="recover" data-i18n="recovered">原音救回</span></div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script type="module" src="./live.mjs"></script>
+</body>
+</html>
