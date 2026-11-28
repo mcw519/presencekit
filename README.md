@@ -81,6 +81,12 @@ step = engine.process_frame(bgr_frame, speaking=vad_flag)
 print(step.snapshot["state"], [e.reason for e in step.events])
 ```
 
+### GitHub Pages preview
+
+Run **Near-field priority** at 2 fps in desktop Chromium with on-device PureSound and YuNet. The monitor shows
+raw and processed audio and supports live listening, WAV export, and English and Traditional Chinese.
+[Open the preview after publication](https://mcw519.github.io/presencekit/) · [Run locally or publish](experiments/browser_poc/README.md)
+
 ## How it works
 
 ```mermaid

@@ -74,6 +74,11 @@ step = engine.process_frame(bgr_frame, speaking=vad_flag)
 print(step.snapshot["state"], [e.reason for e in step.events])
 ```
 
+### GitHub Pages 試用頁
+
+在桌面 Chromium 上用 PureSound 與 YuNet 本機執行「**近場優先**」，影像固定 2 fps。支援原音／輸出對照、
+即時監聽、WAV 下載與中英文切換。 [發布後試用入口](https://mcw519.github.io/presencekit/) · [本機啟動與發布](experiments/browser_poc/README.md)
+
 ## 運作原理
 
 ```mermaid
